@@ -1,4 +1,12 @@
-import * as fs from 'fs';
+import type * as _FS from 'fs';
+
+type fs = typeof _FS;
+
+let fs: fs = await import('fs');
+
+export function _use_fs(_fs: fs): void {
+	fs = _fs;
+}
 
 export function isJSON(str: string) {
 	try {
@@ -14,7 +22,10 @@ export type JSONObject<Key extends string | number | symbol = string> = { [K in 
 export type JSONValue<Key extends string | number | symbol = string> = string | number | boolean | JSONObject<Key> | Array<JSONValue>;
 
 interface FileMapOptions {
-	overwrite_invalid_json: boolean;
+	/**
+	 * Should an invalid JSON file be overwritten
+	 */
+	overwrite_invalid_json?: boolean;
 }
 
 /**
@@ -27,7 +38,7 @@ export class FileMap<T extends JSONValue = JSONValue> implements Map<string, T> 
 
 	constructor(
 		public readonly path: string,
-		public readonly options: FileMapOptions
+		public readonly options: FileMapOptions = {}
 	) {
 		if (!fs.existsSync(path)) {
 			fs.writeFileSync(path, '{}');
@@ -38,9 +49,9 @@ export class FileMap<T extends JSONValue = JSONValue> implements Map<string, T> 
 		const content = fs.readFileSync(this.path, 'utf8');
 		if (!isJSON(content)) {
 			if (!this.options.overwrite_invalid_json) {
-				throw new SyntaxError(`Invalid JSON file: ${this.path}`);
+				throw new SyntaxError('Invalid JSON file: ' + this.path);
 			}
-			console.warn(`Invalid JSON file: ${this.path} (overwriting)`);
+			console.warn('Invalid JSON file (overwriting): ' + this.path);
 			this.clear();
 			return new Map();
 		}
