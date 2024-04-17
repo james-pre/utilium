@@ -1,0 +1,37 @@
+{
+	"name": "utilium",
+	"version": "0.0.1",
+	"description": "Utilies",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"type": "module",
+	"scripts": {
+		"format:check": "prettier --check .",
+		"format": "prettier --write .",
+		"lint": "eslint src && tsc --noEmit",
+		"build": "tsc -p tsconfig.json",
+		"build:docs": "typedoc src/index.ts --out docs",
+		"prepublishOnly": "npm run build"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dr-vortex/utilium.git"
+	},
+	"author": "James P. <jp@drvortex.dev> (https://drvortex.dev)",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/dr-vortex/utilium/issues"
+	},
+	"homepage": "https://github.com/dr-vortex/utilium#readme",
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "^6.2.0",
+		"@typescript-eslint/parser": "^6.2.0",
+		"eslint": "^8.45.0",
+		"prettier": "^3.2.5",
+		"typedoc": "^0.24.8",
+		"typescript": "^5.1.6"
+	},
+	"dependencies": {
+		"@types/node": "^20.12.7"
+	}
+}
