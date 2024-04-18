@@ -29,6 +29,8 @@ export const greekLetterNames = [
 	'Omega',
 ];
 
+const hexRegex = /^[0-9a-f-.]+$/;
+
 export function isHex(str: string) {
-	return /^[0-9a-f-.]+$/.test(str);
+	return hexRegex.test(str);
 }
