@@ -1,11 +1,16 @@
-export const filterObject = (object: object, ...keys: string[]) => Object.fromEntries(Object.entries(object).filter(([key]) => keys.includes(key)));
+export function filterObject<T extends object, K extends keyof T>(object: T, ...keys: K[]): Omit<T, K> {
+	const entries = <[K, T[K]][]>Object.entries(object);
+	return <Omit<T, K>>(<unknown>Object.fromEntries(entries.filter(([key]) => keys.includes(key))));
+}
 
 import type * as FS from 'fs';
 
 let _fs: typeof FS;
 try {
 	_fs = await import('fs');
-} catch (e) {}
+} catch (e) {
+	_fs = null;
+}
 
 export function isJSON(str: string) {
 	try {
