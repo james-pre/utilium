@@ -24,14 +24,12 @@
 	},
 	"homepage": "https://github.com/dr-vortex/utilium#readme",
 	"devDependencies": {
+		"@types/node": "^20.12.7",
 		"@typescript-eslint/eslint-plugin": "^6.2.0",
 		"@typescript-eslint/parser": "^6.2.0",
 		"eslint": "^8.45.0",
 		"prettier": "^3.2.5",
 		"typedoc": "^0.24.8",
 		"typescript": "^5.1.6"
-	},
-	"dependencies": {
-		"@types/node": "^20.12.7"
 	}
 }
