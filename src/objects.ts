@@ -5,11 +5,11 @@ export function filterObject<O extends object, R extends object>(object: O, pred
 	return <R>Object.fromEntries(entries.filter(([key, value]) => predicate(key, value)));
 }
 
-export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly K[][]): Pick<T, K> {
+export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly (readonly K[])[]): Pick<T, K> {
 	return filterObject<T, Pick<T, K>>(object, (key: K) => keys.flat().includes(key));
 }
 
-export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly K[][]): Omit<T, K> {
+export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly (readonly K[])[]): Omit<T, K> {
 	return filterObject<T, Omit<T, K>>(object, (key: K) => !keys.flat().includes(key));
 }
 
