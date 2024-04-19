@@ -13,7 +13,7 @@ export function omit<T extends object, K extends keyof T>(object: T, ...keys: re
 	return filterObject<T, Omit<T, K>>(object, (key: K) => !keys.flat().includes(key));
 }
 
-export function assignWithDefaults<To extends object, From extends Partial<To>>(to: To, from: From, defaults: Partial<To> = to): void {
+export function assignWithDefaults<To extends object, From extends object>(to: To, from: From, defaults: Partial<To> = to): void {
 	const keys = new Set([...Object.keys(to), ...Object.keys(from)]);
 	for (const key of keys) {
 		to[key] = from[key] ?? defaults[key] ?? to[key];
