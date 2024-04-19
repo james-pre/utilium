@@ -1,8 +1,16 @@
 import type * as FS from 'fs';
 
-export function filterObject<T extends object, K extends keyof T>(object: T, ...keys: K[]): Pick<T, K> {
-	const entries = <[K, T[K]][]>Object.entries(object);
-	return <Pick<T, K>>Object.fromEntries(entries.filter(([key]) => keys.includes(key)));
+export function filterObject<O extends object, R extends object>(object: O, predicate: (key: keyof O, value: O[keyof O]) => boolean): R {
+	const entries = <[keyof O, O[keyof O]][]>Object.entries(object);
+	return <R>Object.fromEntries(entries.filter(([key, value]) => predicate(key, value)));
+}
+
+export function pick<T extends object, K extends keyof T>(object: T, ...keys: K[] | K[][]): Pick<T, K> {
+	return filterObject<T, Pick<T, K>>(object, (key: K) => keys.flat().includes(key));
+}
+
+export function omit<T extends object, K extends keyof T>(object: T, ...keys: K[] | K[][]): Omit<T, K> {
+	return filterObject<T, Omit<T, K>>(object, (key: K) => !keys.flat().includes(key));
 }
 
 export function isJSON(str: string) {
