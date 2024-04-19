@@ -8,7 +8,11 @@ export function filterObject<O extends object, R extends object>(object: O, pred
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[]): Pick<T, K>;
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly (readonly K[])[]): Pick<T, K>;
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly (readonly K[])[]): Pick<T, K> {
-	return filterObject<T, Pick<T, K>>(object, (key: K) => keys.flat().includes(key));
+	const picked = <Pick<T, K>>{};
+	for (const key of keys.flat() as K[]) {
+		picked[key] = object[key];
+	}
+	return picked;
 }
 
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[]): Omit<T, K>;
