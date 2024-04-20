@@ -190,3 +190,8 @@ type _Tuple<T, N extends number, R extends unknown[] = Empty> = R['length'] exte
  * Creates a tuple of T with length N
  */
 export type Tuple<T, N extends number> = _Tuple<T, N>;
+
+/**
+ * Makes all members of the tuple T optional
+ */
+export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer Tail] ? [Head?, ...OptionalTuple<Tail>] : T;
