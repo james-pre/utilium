@@ -3,7 +3,7 @@
 		"lib": ["ESNext"],
 		"module": "ESNext",
 		"target": "ES2020",
-		"moduleResolution": "NodeNext",
+		"moduleResolution": "Node",
 		"outDir": "dist",
 		"typeRoots": ["node_modules/@types"],
 		"resolveJsonModule": true,
