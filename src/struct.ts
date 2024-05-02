@@ -32,7 +32,7 @@ export interface StructOptions {
 }
 
 interface Member {
-	type: PrimitiveType | StructStatic;
+	type: PrimitiveType | Static;
 	offset: number;
 	length?: number;
 }
@@ -45,26 +45,26 @@ interface Metadata {
 
 const metadata = Symbol('struct');
 
-export interface StructStatic {
+interface Static {
 	[metadata]?: Metadata;
-	new (): StructInstance;
-	prototype: StructInstance;
+	new (): Instance;
+	prototype: Instance;
 }
 
-export function isStructStatic(arg: unknown): arg is StructStatic {
+function isStatic(arg: unknown): arg is Static {
 	return typeof arg == 'function' && metadata in arg;
 }
 
-export interface StructInstance {
-	constructor: StructStatic;
+interface Instance {
+	constructor: Static;
 }
 
-export function isStructInstance(arg: unknown): arg is StructInstance {
+function isInstance(arg: unknown): arg is Instance {
 	return metadata in (arg?.constructor || {});
 }
 
-export function isStruct(arg: unknown): arg is StructInstance | StructStatic {
-	return isStructInstance(arg) || isStructStatic(arg);
+export function isStruct(arg: unknown): arg is Instance | Static {
+	return isInstance(arg) || isStatic(arg);
 }
 
 export function sizeof(type: ValidPrimitiveType | ClassLike | object): number {
@@ -96,7 +96,7 @@ export function struct(options: Partial<StructOptions> = {}) {
 		let size = 0;
 		const members = new Map();
 		for (const { name, type, length } of target[init] as MemberInit[]) {
-			if (!isValidPrimitive(type) && !isStructStatic(type)) {
+			if (!isValidPrimitive(type) && !isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
@@ -127,7 +127,7 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 }
 
 export function serialize(instance: unknown): Uint8Array {
-	if (!isStructInstance(instance)) {
+	if (!isInstance(instance)) {
 		throw new TypeError('Can not serialize');
 	}
 	const { options, members } = instance.constructor[metadata];
@@ -165,7 +165,7 @@ export function serialize(instance: unknown): Uint8Array {
 }
 
 export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
-	if (!isStructInstance(instance)) {
+	if (!isInstance(instance)) {
 		throw new TypeError('Can not serialize');
 	}
 	const { options, members } = instance.constructor[metadata];
