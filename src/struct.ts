@@ -63,7 +63,7 @@ function isInstance(arg: unknown): arg is Instance {
 	return metadata in (arg?.constructor || {});
 }
 
-export function isStruct(arg: unknown): arg is Instance | Static {
+function isStruct(arg: unknown): arg is Instance | Static {
 	return isInstance(arg) || isStatic(arg);
 }
 
