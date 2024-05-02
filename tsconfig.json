@@ -3,13 +3,14 @@
 		"lib": ["ESNext"],
 		"module": "ESNext",
 		"target": "ES2020",
-		"moduleResolution": "Node",
+		"moduleResolution": "NodeNext",
 		"outDir": "dist",
 		"typeRoots": ["node_modules/@types"],
 		"resolveJsonModule": true,
 		"esModuleInterop": true,
 		"noImplicitThis": true,
-		"declaration": true
+		"declaration": true,
+		"experimentalDecorators": true
 	},
 	"typedocOptions": {
 		"entryPoints": ["src/index.ts"],

@@ -195,3 +195,10 @@ export type Tuple<T, N extends number> = _Tuple<T, N>;
  * Makes all members of the tuple T optional
  */
 export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer Tail] ? [Head?, ...OptionalTuple<Tail>] : T;
+
+/**
+ * Keys of a Map
+ */
+export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
+
+export type ClassLike<Instance = unknown> = abstract new (...args: unknown[]) => Instance;
