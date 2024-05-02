@@ -95,15 +95,16 @@ export function struct(options: Partial<StructOptions> = {}) {
 		target[init] ||= [];
 		let size = 0;
 		const members = new Map();
-		for (const { name, type } of target[init] as MemberInit[]) {
+		for (const { name, type, length } of target[init] as MemberInit[]) {
 			if (!isValidPrimitive(type) && !isStructStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
 				offset: size,
 				type: isValidPrimitive(type) ? normalizePrimitive(type) : type,
+				length,
 			});
-			size += sizeof(type);
+			size += sizeof(type) * (length || 1);
 			size = align(size, options.align || 1);
 		}
 
@@ -121,11 +122,7 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 		}
 
 		target.constructor[init] ||= [];
-		const member: MemberInit = { name, type };
-		if (length) {
-			member.length = length;
-		}
-		target.constructor[init].push(member);
+		target.constructor[init].push({ name, type, length } satisfies MemberInit);
 	};
 }
 
@@ -138,27 +135,30 @@ export function serialize(instance: unknown): Uint8Array {
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
 
-	for (const [name, { type, offset }] of members) {
-		const value = instance[name];
+	for (const [name, { type, length, offset }] of members) {
+		for (let i = 0; i < (length || 1); i++) {
+			const value = length > 0 ? instance[name][i] : instance[name],
+				iOff = offset + sizeof(type) * i;
 
-		if (!isPrimitiveType(type)) {
-			buffer.set(serialize(value), offset);
-			continue;
+			if (!isPrimitiveType(type)) {
+				buffer.set(serialize(value), iOff);
+				continue;
+			}
+
+			const t = capitalize(type);
+			const fn = <`set${typeof t}`>('set' + t);
+			if (fn == 'setInt64') {
+				view.setBigInt64(iOff, BigInt(value), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'setUint64') {
+				view.setBigUint64(iOff, BigInt(value), !options.bigEndian);
+				continue;
+			}
+
+			view[fn](iOff, Number(value), !options.bigEndian);
 		}
-
-		const t = capitalize(type);
-		const fn = <`set${typeof t}`>('set' + t);
-		if (fn == 'setInt64') {
-			view.setBigInt64(offset, value, !options.bigEndian);
-			continue;
-		}
-
-		if (fn == 'setUint64') {
-			view.setBigUint64(offset, value, !options.bigEndian);
-			continue;
-		}
-
-		view[fn](offset, value, !options.bigEndian);
 	}
 
 	return buffer;
@@ -174,24 +174,29 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 
 	const view = new DataView(buffer.buffer);
 
-	for (const [name, { type, offset }] of members) {
-		if (!isPrimitiveType(type)) {
-			deserialize(new type(), buffer.slice(offset, sizeof(type)));
-			continue;
-		}
+	for (const [name, { type, offset, length }] of members) {
+		for (let i = 0; i < (length || 1); i++) {
+			const object = length > 0 ? instance[name] : instance,
+				key = length > 0 ? i : name,
+				iOff = offset + sizeof(type) * i;
+			if (!isPrimitiveType(type)) {
+				object[key] = deserialize(new type(), buffer.slice(iOff, sizeof(type)));
+				continue;
+			}
 
-		const t = capitalize(type);
-		const fn = <`get${typeof t}`>('get' + t);
-		if (fn == 'getInt64') {
-			instance[name] = view.getBigInt64(offset, !options.bigEndian);
-			continue;
-		}
+			const t = capitalize(type);
+			const fn = <`get${typeof t}`>('get' + t);
+			if (fn == 'getInt64') {
+				object[key] = view.getBigInt64(iOff, !options.bigEndian);
+				continue;
+			}
 
-		if (fn == 'getUint64') {
-			instance[name] = view.getBigUint64(offset, !options.bigEndian);
-			continue;
-		}
+			if (fn == 'getUint64') {
+				object[key] = view.getBigUint64(iOff, !options.bigEndian);
+				continue;
+			}
 
-		instance[name] = view[fn](offset, !options.bigEndian);
+			object[key] = view[fn](iOff, !options.bigEndian);
+		}
 	}
 }
