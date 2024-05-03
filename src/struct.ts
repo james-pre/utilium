@@ -133,17 +133,14 @@ export function struct(options: Partial<StructOptions> = {}) {
  * Decorates a class member to be serialized
  */
 export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
-	return function (target: object, { name }: ClassMemberDecoratorContext) {
+	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
+		let name = typeof context == 'object' ? context.name : context;
 		if (typeof name == 'symbol') {
 			console.warn('Symbol used for struct member name will be coerced to string: ' + name.toString());
 			name = name.toString();
 		}
 
-		if (typeof target != 'object' || typeof target != 'function') {
-			throw new TypeError('Invalid member for struct field');
-		}
-
-		if (!('constructor' in target)) {
+		if ((typeof target != 'object' || typeof target != 'function') && !('constructor' in target)) {
 			throw new TypeError('Invalid member for struct field');
 		}
 
@@ -251,16 +248,16 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 }
 
 function _member<T extends ValidPrimitiveType>(type: T) {
-	function decorator(length?: number): (target: object, context: ClassMemberDecoratorContext) => void;
-	function decorator(target: object, context: ClassMemberDecoratorContext): void;
-	function decorator(targetOrLength: object | number, context?: ClassMemberDecoratorContext) {
+	function _(length?: number): (target: object, context?: string | symbol | ClassMemberDecoratorContext) => void;
+	function _(target: object, context?: string | symbol | ClassMemberDecoratorContext): void;
+	function _(targetOrLength: object | number, context?: string | symbol | ClassMemberDecoratorContext) {
 		if (typeof targetOrLength == 'number') {
 			return member(type, targetOrLength);
 		}
 
 		return member(type)(targetOrLength, context);
 	}
-	return decorator;
+	return _;
 }
 
 /**
