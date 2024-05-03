@@ -258,7 +258,7 @@ function _member<T extends ValidPrimitiveType>(type: T) {
 
 /**
  * Shortcut types
- * 
+ *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
 export const types = Object.fromEntries(validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in ValidPrimitiveType]: ReturnType<typeof _member<K>> };
