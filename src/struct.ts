@@ -4,6 +4,10 @@ import { ClassLike } from './types.js';
 export type PrimitiveType = `${'int' | 'uint'}${8 | 16 | 32 | 64}` | `float${32 | 64}`;
 export type ValidPrimitiveType = PrimitiveType | Capitalize<PrimitiveType> | 'char';
 
+const primitiveTypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64'] satisfies PrimitiveType[];
+
+const validPrimitiveTypes = [...primitiveTypes, ...primitiveTypes.map(t => capitalize(t)), 'char'] satisfies ValidPrimitiveType[];
+
 const numberRegex = /^(u?int)(8|16|32|64)|(float)(32|64)$/i;
 
 function normalizePrimitive(type: ValidPrimitiveType): PrimitiveType {
@@ -114,7 +118,7 @@ export function struct(options: Partial<StructOptions> = {}) {
 }
 
 export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
-	return function (target: unknown, context?: ClassMemberDecoratorContext | string | symbol) {
+	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
 		let name = typeof context == 'object' ? context.name : context;
 		if (typeof name == 'symbol') {
 			console.warn('Symbol used for struct member name will be coerced to string: ' + name.toString());
@@ -128,7 +132,7 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 
 export function serialize(instance: unknown): Uint8Array {
 	if (!isInstance(instance)) {
-		throw new TypeError('Can not serialize');
+		throw new TypeError('Can not serialize, not a struct instance');
 	}
 	const { options, members } = instance.constructor[metadata];
 
@@ -145,7 +149,7 @@ export function serialize(instance: unknown): Uint8Array {
 			}
 
 			if (!isPrimitiveType(type)) {
-				buffer.set(serialize(value), iOff);
+				buffer.set(value ? serialize(value) : new Uint8Array(sizeof(type)), iOff);
 				continue;
 			}
 
@@ -170,7 +174,7 @@ export function serialize(instance: unknown): Uint8Array {
 
 export function deserialize(instance: unknown, _buffer: Uint8Array) {
 	if (!isInstance(instance)) {
-		throw new TypeError('Can not deserialize');
+		throw new TypeError('Can not deserialize, not a struct instance');
 	}
 	const { options, members } = instance.constructor[metadata];
 
@@ -190,6 +194,9 @@ export function deserialize(instance: unknown, _buffer: Uint8Array) {
 			}
 
 			if (!isPrimitiveType(type)) {
+				if (object[key] === null || object[key] === undefined) {
+					continue;
+				}
 				deserialize(object[key], new Uint8Array(buffer.slice(iOff, sizeof(type))));
 				continue;
 			}
@@ -214,3 +221,18 @@ export function deserialize(instance: unknown, _buffer: Uint8Array) {
 		}
 	}
 }
+
+function _member<T extends ValidPrimitiveType>(type: T) {
+	function _(length?: number): (target: object, context?: string | symbol | ClassMemberDecoratorContext) => void;
+	function _(target: object, context?: string | symbol | ClassMemberDecoratorContext): void;
+	function _(targetOrLength: object | number, context?: string | symbol | ClassMemberDecoratorContext) {
+		if (typeof targetOrLength == 'number') {
+			return member(type, targetOrLength);
+		}
+
+		return member(type)(targetOrLength, context);
+	}
+	return _;
+}
+
+export const types = Object.fromEntries(validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in ValidPrimitiveType]: ReturnType<typeof _member<K>> };
