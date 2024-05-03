@@ -140,6 +140,10 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 			name = name.toString();
 		}
 
+		if ((typeof target != 'object' || typeof target != 'function') && !('constructor' in target)) {
+			throw new TypeError('Invalid member for struct field');
+		}
+
 		target.constructor[init] ||= [];
 		target.constructor[init].push({ name, type, length } satisfies MemberInit);
 	};
