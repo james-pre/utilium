@@ -193,7 +193,7 @@ export function serialize(instance: unknown): Uint8Array {
 /**
  * Deserializes a struct from a Uint8Array
  */
-export function deserialize(instance: unknown, _buffer: Uint8Array) {
+export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
 	if (!isInstance(instance)) {
 		throw new TypeError('Can not deserialize, not a struct instance');
 	}
