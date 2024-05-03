@@ -137,16 +137,20 @@ export function serialize(instance: unknown): Uint8Array {
 
 	for (const [name, { type, length, offset }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
-			const value = length > 0 ? instance[name][i] : instance[name],
-				iOff = offset + sizeof(type) * i;
+			const iOff = offset + sizeof(type) * i;
+
+			let value = length > 0 ? instance[name][i] : instance[name];
+			if (typeof value == 'string') {
+				value = value.charCodeAt(0);
+			}
 
 			if (!isPrimitiveType(type)) {
 				buffer.set(serialize(value), iOff);
 				continue;
 			}
 
-			const t = capitalize(type);
-			const fn = <`set${typeof t}`>('set' + t);
+			const Type = capitalize(type);
+			const fn = <`set${typeof Type}`>('set' + Type);
 			if (fn == 'setInt64') {
 				view.setBigInt64(iOff, BigInt(value), !options.bigEndian);
 				continue;
@@ -164,9 +168,9 @@ export function serialize(instance: unknown): Uint8Array {
 	return buffer;
 }
 
-export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
+export function deserialize(instance: unknown, _buffer: Uint8Array) {
 	if (!isInstance(instance)) {
-		throw new TypeError('Can not serialize');
+		throw new TypeError('Can not deserialize');
 	}
 	const { options, members } = instance.constructor[metadata];
 
@@ -176,16 +180,26 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 
 	for (const [name, { type, offset, length }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
-			const object = length > 0 ? instance[name] : instance,
-				key = length > 0 ? i : name,
+			let object = length > 0 ? instance[name] : instance;
+			const key = length > 0 ? i : name,
 				iOff = offset + sizeof(type) * i;
-			if (!isPrimitiveType(type)) {
-				object[key] = deserialize(new type(), buffer.slice(iOff, sizeof(type)));
+
+			if (typeof instance[name] == 'string') {
+				instance[name] = instance[name].slice(0, i) + String.fromCharCode(view.getUint8(iOff)) + instance[name].slice(i + 1);
 				continue;
 			}
 
-			const t = capitalize(type);
-			const fn = <`get${typeof t}`>('get' + t);
+			if (!isPrimitiveType(type)) {
+				deserialize(object[key], new Uint8Array(buffer.slice(iOff, sizeof(type))));
+				continue;
+			}
+
+			if (length > 0) {
+				object ||= [];
+			}
+
+			const Type = capitalize(type);
+			const fn = <`get${typeof Type}`>('get' + Type);
 			if (fn == 'getInt64') {
 				object[key] = view.getBigInt64(iOff, !options.bigEndian);
 				continue;
