@@ -30,6 +30,9 @@ interface MemberInit {
 
 const init = Symbol('struct_init');
 
+/**
+ * Options for struct initialization
+ */
 export interface StructOptions {
 	align: number;
 	bigEndian: boolean;
@@ -71,6 +74,9 @@ function isStruct(arg: unknown): arg is Instance | Static {
 	return isInstance(arg) || isStatic(arg);
 }
 
+/**
+ * Gets the size in bytes of a type
+ */
 export function sizeof(type: ValidPrimitiveType | ClassLike | object): number {
 	// primitive
 	if (typeof type == 'string') {
@@ -89,10 +95,16 @@ export function sizeof(type: ValidPrimitiveType | ClassLike | object): number {
 	return meta.size;
 }
 
+/**
+ * Aligns a number
+ */
 export function align(value: number, alignment: number): number {
 	return Math.ceil(value / alignment) * alignment;
 }
 
+/**
+ * Decorates a class as a struct
+ */
 export function struct(options: Partial<StructOptions> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	return function (target: ClassLike, _?: ClassDecoratorContext) {
@@ -117,6 +129,9 @@ export function struct(options: Partial<StructOptions> = {}) {
 	};
 }
 
+/**
+ * Decorates a class member to be serialized
+ */
 export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
 		let name = typeof context == 'object' ? context.name : context;
@@ -130,6 +145,9 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 	};
 }
 
+/**
+ * Serializes a struct into a Uint8Array
+ */
 export function serialize(instance: unknown): Uint8Array {
 	if (!isInstance(instance)) {
 		throw new TypeError('Can not serialize, not a struct instance');
@@ -172,6 +190,9 @@ export function serialize(instance: unknown): Uint8Array {
 	return buffer;
 }
 
+/**
+ * Deserializes a struct from a Uint8Array
+ */
 export function deserialize(instance: unknown, _buffer: Uint8Array) {
 	if (!isInstance(instance)) {
 		throw new TypeError('Can not deserialize, not a struct instance');
@@ -235,4 +256,9 @@ function _member<T extends ValidPrimitiveType>(type: T) {
 	return _;
 }
 
+/**
+ * Shortcut types
+ * 
+ * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
+ */
 export const types = Object.fromEntries(validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in ValidPrimitiveType]: ReturnType<typeof _member<K>> };
