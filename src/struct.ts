@@ -1,97 +1,27 @@
+import * as Struct from './internal/struct.js';
 import { capitalize } from './string.js';
 import { ClassLike } from './types.js';
 
-export type PrimitiveType = `${'int' | 'uint'}${8 | 16 | 32 | 64}` | `float${32 | 64}`;
-export type ValidPrimitiveType = PrimitiveType | Capitalize<PrimitiveType> | 'char';
-
-const primitiveTypes = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64'] satisfies PrimitiveType[];
-
-const validPrimitiveTypes = [...primitiveTypes, ...primitiveTypes.map(t => capitalize(t)), 'char'] satisfies ValidPrimitiveType[];
-
-const numberRegex = /^(u?int)(8|16|32|64)|(float)(32|64)$/i;
-
-function normalizePrimitive(type: ValidPrimitiveType): PrimitiveType {
-	return type == 'char' ? 'uint8' : <PrimitiveType>type.toLowerCase();
-}
-
-function isPrimitiveType(type: unknown): type is PrimitiveType {
-	return numberRegex.test(type.toString());
-}
-
-function isValidPrimitive(type: unknown): type is ValidPrimitiveType {
-	return type == 'char' || numberRegex.test(type.toString().toLowerCase());
-}
-
-interface MemberInit {
-	name: string;
-	type: string | ClassLike;
-	length?: number;
-}
-
-const init = Symbol('struct_init');
-
-/**
- * Options for struct initialization
- */
-export interface StructOptions {
-	align: number;
-	bigEndian: boolean;
-}
-
-interface Member {
-	type: PrimitiveType | Static;
-	offset: number;
-	length?: number;
-}
-
-interface Metadata {
-	options: Partial<StructOptions>;
-	members: Map<string, Member>;
-	size: number;
-}
-
-const metadata = Symbol('struct');
-
-interface Static {
-	[metadata]?: Metadata;
-	new (): Instance;
-	prototype: Instance;
-}
-
-function isStatic(arg: unknown): arg is Static {
-	return typeof arg == 'function' && metadata in arg;
-}
-
-interface Instance {
-	constructor: Static;
-}
-
-function isInstance(arg: unknown): arg is Instance {
-	return metadata in (arg?.constructor || {});
-}
-
-function isStruct(arg: unknown): arg is Instance | Static {
-	return isInstance(arg) || isStatic(arg);
-}
+export { Struct };
 
 /**
  * Gets the size in bytes of a type
  */
-export function sizeof(type: ValidPrimitiveType | ClassLike | object): number {
+export function sizeof(type: Struct.ValidPrimitiveType | ClassLike | object): number {
 	// primitive
 	if (typeof type == 'string') {
-		if (!isValidPrimitive(type)) {
+		if (!Struct.isValidPrimitive(type)) {
 			throw new TypeError('Invalid primitive type: ' + type);
 		}
 
-		return +normalizePrimitive(type).match(numberRegex)[2] / 8;
+		return +Struct.normalizePrimitive(type).match(Struct.numberRegex)[2] / 8;
 	}
 
-	if (!isStruct(type)) {
+	if (!Struct.isStruct(type)) {
 		throw new TypeError('Not a struct');
 	}
 
-	const meta: Metadata = metadata in type ? type[metadata] : type.constructor[metadata];
+	const meta: Struct.Metadata = Struct.metadata in type ? type[Struct.metadata] : type.constructor[Struct.metadata];
 	return meta.size;
 }
 
@@ -105,34 +35,34 @@ export function align(value: number, alignment: number): number {
 /**
  * Decorates a class as a struct
  */
-export function struct(options: Partial<StructOptions> = {}) {
+export function struct(options: Partial<Struct.Options> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	return function (target: ClassLike, _?: ClassDecoratorContext) {
-		target[init] ||= [];
+		target[Struct.init] ||= [];
 		let size = 0;
 		const members = new Map();
-		for (const { name, type, length } of target[init] as MemberInit[]) {
-			if (!isValidPrimitive(type) && !isStatic(type)) {
+		for (const { name, type, length } of target[Struct.init] as Struct.MemberInit[]) {
+			if (!Struct.isValidPrimitive(type) && !Struct.isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
 				offset: size,
-				type: isValidPrimitive(type) ? normalizePrimitive(type) : type,
+				type: Struct.isValidPrimitive(type) ? Struct.normalizePrimitive(type) : type,
 				length,
 			});
 			size += sizeof(type) * (length || 1);
 			size = align(size, options.align || 1);
 		}
 
-		target[metadata] = { options, members, size } satisfies Metadata;
-		delete target[init];
+		target[Struct.metadata] = { options, members, size } satisfies Struct.Metadata;
+		delete target[Struct.init];
 	};
 }
 
 /**
  * Decorates a class member to be serialized
  */
-export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
+export function member(type: Struct.ValidPrimitiveType | ClassLike, length?: number) {
 	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
 		let name = typeof context == 'object' ? context.name : context;
 		if (typeof name == 'symbol') {
@@ -144,8 +74,8 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
 			throw new TypeError('Invalid member for struct field');
 		}
 
-		target.constructor[init] ||= [];
-		target.constructor[init].push({ name, type, length } satisfies MemberInit);
+		target.constructor[Struct.init] ||= [];
+		target.constructor[Struct.init].push({ name, type, length } satisfies Struct.MemberInit);
 	};
 }
 
@@ -153,10 +83,10 @@ export function member(type: ValidPrimitiveType | ClassLike, length?: number) {
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
-	if (!isInstance(instance)) {
+	if (!Struct.isInstance(instance)) {
 		throw new TypeError('Can not serialize, not a struct instance');
 	}
-	const { options, members } = instance.constructor[metadata];
+	const { options, members } = instance.constructor[Struct.metadata];
 
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
@@ -170,7 +100,7 @@ export function serialize(instance: unknown): Uint8Array {
 				value = value.charCodeAt(0);
 			}
 
-			if (!isPrimitiveType(type)) {
+			if (!Struct.isPrimitiveType(type)) {
 				buffer.set(value ? serialize(value) : new Uint8Array(sizeof(type)), iOff);
 				continue;
 			}
@@ -198,10 +128,10 @@ export function serialize(instance: unknown): Uint8Array {
  * Deserializes a struct from a Uint8Array
  */
 export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
-	if (!isInstance(instance)) {
+	if (!Struct.isInstance(instance)) {
 		throw new TypeError('Can not deserialize, not a struct instance');
 	}
-	const { options, members } = instance.constructor[metadata];
+	const { options, members } = instance.constructor[Struct.metadata];
 
 	const buffer = new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
@@ -218,7 +148,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 				continue;
 			}
 
-			if (!isPrimitiveType(type)) {
+			if (!Struct.isPrimitiveType(type)) {
 				if (object[key] === null || object[key] === undefined) {
 					continue;
 				}
@@ -247,7 +177,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 	}
 }
 
-function _member<T extends ValidPrimitiveType>(type: T) {
+function _member<T extends Struct.ValidPrimitiveType>(type: T) {
 	function _(length?: number): (target: object, context?: string | symbol | ClassMemberDecoratorContext) => void;
 	function _(target: object, context?: string | symbol | ClassMemberDecoratorContext): void;
 	function _(targetOrLength: object | number, context?: string | symbol | ClassMemberDecoratorContext) {
@@ -265,4 +195,4 @@ function _member<T extends ValidPrimitiveType>(type: T) {
  *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
-export const types = Object.fromEntries(validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in ValidPrimitiveType]: ReturnType<typeof _member<K>> };
+export const types = Object.fromEntries(Struct.validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in Struct.ValidPrimitiveType]: ReturnType<typeof _member<K>> };
