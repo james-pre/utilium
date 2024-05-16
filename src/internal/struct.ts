@@ -14,11 +14,11 @@ export function normalizePrimitive(type: ValidPrimitiveType): PrimitiveType {
 	return type == 'char' ? 'uint8' : <PrimitiveType>type.toLowerCase();
 }
 
-export function isPrimitiveType(type: unknown): type is PrimitiveType {
+export function isPrimitiveType(type: { toString(): string }): type is PrimitiveType {
 	return numberRegex.test(type.toString());
 }
 
-export function isValidPrimitive(type: unknown): type is ValidPrimitiveType {
+export function isValidPrimitive(type: { toString(): string }): type is ValidPrimitiveType {
 	return type == 'char' || numberRegex.test(type.toString().toLowerCase());
 }
 
@@ -53,9 +53,14 @@ export interface Metadata {
 export const metadata = Symbol('struct');
 
 export interface Static {
-	[metadata]?: Metadata;
+	[metadata]: Metadata;
 	new (): Instance;
 	prototype: Instance;
+}
+
+export interface StaticLike extends ClassLike {
+	[metadata]?: Metadata;
+	[init]?: MemberInit[];
 }
 
 export function isStatic(arg: unknown): arg is Static {
@@ -64,6 +69,10 @@ export function isStatic(arg: unknown): arg is Static {
 
 export interface Instance {
 	constructor: Static;
+}
+
+export interface InstanceLike {
+	constructor: StaticLike;
 }
 
 export function isInstance(arg: unknown): arg is Instance {

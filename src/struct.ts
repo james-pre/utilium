@@ -14,14 +14,15 @@ export function sizeof(type: Struct.ValidPrimitiveType | ClassLike | object): nu
 			throw new TypeError('Invalid primitive type: ' + type);
 		}
 
-		return +Struct.normalizePrimitive(type).match(Struct.numberRegex)[2] / 8;
+		return +Struct.normalizePrimitive(type).match(Struct.numberRegex)![2] / 8;
 	}
 
 	if (!Struct.isStruct(type)) {
 		throw new TypeError('Not a struct');
 	}
 
-	const meta: Struct.Metadata = Struct.metadata in type ? type[Struct.metadata] : type.constructor[Struct.metadata];
+	const meta: Struct.Metadata = Struct.isStatic(type) ? type[Struct.metadata] : type.constructor[Struct.metadata];
+
 	return meta.size;
 }
 
@@ -37,11 +38,11 @@ export function align(value: number, alignment: number): number {
  */
 export function struct(options: Partial<Struct.Options> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	return function (target: ClassLike, _?: ClassDecoratorContext) {
+	return function (target: Struct.StaticLike, _?: ClassDecoratorContext) {
 		target[Struct.init] ||= [];
 		let size = 0;
 		const members = new Map();
-		for (const { name, type, length } of target[Struct.init] as Struct.MemberInit[]) {
+		for (const { name, type, length } of target[Struct.init]) {
 			if (!Struct.isValidPrimitive(type) && !Struct.isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
@@ -55,7 +56,6 @@ export function struct(options: Partial<Struct.Options> = {}) {
 		}
 
 		target[Struct.metadata] = { options, members, size } satisfies Struct.Metadata;
-		delete target[Struct.init];
 	};
 }
 
@@ -70,12 +70,22 @@ export function member(type: Struct.ValidPrimitiveType | ClassLike, length?: num
 			name = name.toString();
 		}
 
-		if ((typeof target != 'object' || typeof target != 'function') && !('constructor' in target)) {
+		if (!name) {
+			throw new ReferenceError('Invalid name for struct member');
+		}
+
+		if (typeof target != 'object') {
 			throw new TypeError('Invalid member for struct field');
 		}
 
-		target.constructor[Struct.init] ||= [];
-		target.constructor[Struct.init].push({ name, type, length } satisfies Struct.MemberInit);
+		if (!('constructor' in target)) {
+			throw new TypeError('Invalid member for struct field');
+		}
+
+		const struct = (target as Struct.InstanceLike).constructor;
+
+		struct[Struct.init] ||= [];
+		struct[Struct.init].push({ name, type, length } satisfies Struct.MemberInit);
 	};
 }
 
@@ -95,7 +105,8 @@ export function serialize(instance: unknown): Uint8Array {
 		for (let i = 0; i < (length || 1); i++) {
 			const iOff = offset + sizeof(type) * i;
 
-			let value = length > 0 ? instance[name][i] : instance[name];
+			// @ts-expect-error 7053
+			let value = length! > 0 ? instance[name][i] : instance[name];
 			if (typeof value == 'string') {
 				value = value.charCodeAt(0);
 			}
@@ -139,11 +150,14 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 
 	for (const [name, { type, offset, length }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
-			let object = length > 0 ? instance[name] : instance;
-			const key = length > 0 ? i : name,
+			// @ts-expect-error 7053
+			let object = length! > 0 ? instance[name] : instance;
+			const key = length! > 0 ? i : name,
 				iOff = offset + sizeof(type) * i;
 
+			// @ts-expect-error 7053
 			if (typeof instance[name] == 'string') {
+				// @ts-expect-error 7053
 				instance[name] = instance[name].slice(0, i) + String.fromCharCode(view.getUint8(iOff)) + instance[name].slice(i + 1);
 				continue;
 			}
@@ -156,7 +170,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 				continue;
 			}
 
-			if (length > 0) {
+			if (length! > 0) {
 				object ||= [];
 			}
 
@@ -177,10 +191,15 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 	}
 }
 
+/**
+ * Also can be a name when legacy decorators are used
+ */
+type Context = string | symbol | ClassMemberDecoratorContext;
+
 function _member<T extends Struct.ValidPrimitiveType>(type: T) {
-	function _(length?: number): (target: object, context?: string | symbol | ClassMemberDecoratorContext) => void;
-	function _(target: object, context?: string | symbol | ClassMemberDecoratorContext): void;
-	function _(targetOrLength: object | number, context?: string | symbol | ClassMemberDecoratorContext) {
+	function _(length: number): (target: object, context?: Context) => void;
+	function _(target: object, context?: Context): void;
+	function _(targetOrLength: object | number, context?: Context) {
 		if (typeof targetOrLength == 'number') {
 			return member(type, targetOrLength);
 		}

@@ -18,11 +18,11 @@ export function pick<T extends object, K extends keyof T>(object: T, ...keys: re
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[]): Omit<T, K>;
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly (readonly K[])[]): Omit<T, K>;
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly (readonly K[])[]): Omit<T, K> {
-	return filterObject<T, Omit<T, K>>(object, (key: K) => !keys.flat().includes(key));
+	return filterObject<T, Omit<T, K>>(object, key => !keys.flat().includes(key as K));
 }
 
-export function assignWithDefaults<To extends object, From extends object>(to: To, from: From, defaults: Partial<To> = to): void {
-	const keys = new Set([...Object.keys(to), ...Object.keys(from)]);
+export function assignWithDefaults<To extends Record<keyof any, any>, From extends Partial<To>>(to: To, from: From, defaults: Partial<To> = to): void {
+	const keys = new Set<keyof To | keyof From>([...Object.keys(to), ...Object.keys(from)]);
 	for (const key of keys) {
 		try {
 			to[key] = from[key] ?? defaults[key] ?? to[key];
@@ -184,7 +184,7 @@ export interface FolderMapOptions {
 	 */
 	suffix: string;
 
-	fs?: typeof FS;
+	fs: typeof FS;
 }
 
 /**
@@ -199,14 +199,14 @@ export class FolderMap extends FileMap<string> {
 		path: string,
 		public readonly options: Partial<FolderMapOptions>
 	) {
-		super(path, options.fs);
+		super(path, options.fs!);
 	}
 
 	protected get _names(): string[] {
 		return this.fs
 			.readdirSync(this.path)
-			.filter(p => p.endsWith(this.options.suffix))
-			.map(p => p.slice(0, -this.options.suffix.length));
+			.filter(p => p.endsWith(this.options.suffix || ''))
+			.map(p => p.slice(0, -this.options.suffix!.length));
 	}
 
 	protected _join(path: string): string {
@@ -214,7 +214,7 @@ export class FolderMap extends FileMap<string> {
 	}
 
 	protected get _map(): Map<string, string> {
-		const entries = [];
+		const entries: [string, string][] = [];
 		for (const name of this._names) {
 			const content = this.fs.readFileSync(this._join(name), 'utf8');
 			entries.push([name, content]);
@@ -238,9 +238,10 @@ export class FolderMap extends FileMap<string> {
 	}
 
 	public get(key: string): string {
-		if (this.has(key)) {
-			return this.fs.readFileSync(this._join(key), 'utf8');
+		if (!this.has(key)) {
+			throw new ReferenceError('Key not found');
 		}
+		return this.fs.readFileSync(this._join(key), 'utf8');
 	}
 
 	public has(key: string): boolean {
