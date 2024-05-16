@@ -1,20 +1,20 @@
 import * as Struct from './internal/struct.js';
 import { capitalize } from './string.js';
 import { ClassLike } from './types.js';
-
+import * as primitive from './internal/primitives.js';
 export { Struct };
 
 /**
  * Gets the size in bytes of a type
  */
-export function sizeof<T extends Struct.ValidPrimitive | Struct.StaticLike | Struct.InstanceLike>(type: T): Struct.Size<T> {
+export function sizeof<T extends primitive.Valid | Struct.StaticLike | Struct.InstanceLike>(type: T): Struct.Size<T> {
 	// primitive
 	if (typeof type == 'string') {
-		if (!Struct.isValidPrimitive(type)) {
+		if (!primitive.isValid(type)) {
 			throw new TypeError('Invalid primitive type: ' + type);
 		}
 
-		return (+Struct.normalizePrimitive(type).match(Struct.numberRegex)![2] / 8) as Struct.Size<T>;
+		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Struct.Size<T>;
 	}
 
 	if (!Struct.isStruct(type)) {
@@ -43,12 +43,12 @@ export function struct(options: Partial<Struct.Options> = {}) {
 		let size = 0;
 		const members = new Map();
 		for (const { name, type, length } of target[Struct.init]) {
-			if (!Struct.isValidPrimitive(type) && !Struct.isStatic(type)) {
+			if (!primitive.isValid(type) && !Struct.isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
 				offset: size,
-				type: Struct.isValidPrimitive(type) ? Struct.normalizePrimitive(type) : type,
+				type: primitive.isValid(type) ? primitive.normalize(type) : type,
 				length,
 			});
 			size += sizeof(type) * (length || 1);
@@ -62,7 +62,7 @@ export function struct(options: Partial<Struct.Options> = {}) {
 /**
  * Decorates a class member to be serialized
  */
-export function member(type: Struct.ValidPrimitive | ClassLike, length?: number) {
+export function member(type: primitive.Valid | ClassLike, length?: number) {
 	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
 		let name = typeof context == 'object' ? context.name : context;
 		if (typeof name == 'symbol') {
@@ -111,7 +111,7 @@ export function serialize(instance: unknown): Uint8Array {
 				value = value.charCodeAt(0);
 			}
 
-			if (!Struct.isPrimitiveType(type)) {
+			if (!primitive.isType(type)) {
 				buffer.set(value ? serialize(value) : new Uint8Array(sizeof(type)), iOff);
 				continue;
 			}
@@ -162,7 +162,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 				continue;
 			}
 
-			if (!Struct.isPrimitiveType(type)) {
+			if (!primitive.isType(type)) {
 				if (object[key] === null || object[key] === undefined) {
 					continue;
 				}
@@ -196,7 +196,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
  */
 type Context = string | symbol | ClassMemberDecoratorContext;
 
-function _member<T extends Struct.ValidPrimitive>(type: T) {
+function _member<T extends primitive.Valid>(type: T) {
 	function _(length: number): (target: object, context?: Context) => void;
 	function _(target: object, context?: Context): void;
 	function _(targetOrLength: object | number, context?: Context) {
@@ -214,4 +214,4 @@ function _member<T extends Struct.ValidPrimitive>(type: T) {
  *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
-export const types = Object.fromEntries(Struct.validPrimitives.map(t => [t, _member(t)])) as { [K in Struct.ValidPrimitive]: ReturnType<typeof _member<K>> };
+export const types = Object.fromEntries(primitive.valids.map(t => [t, _member(t)])) as { [K in primitive.Valid]: ReturnType<typeof _member<K>> };

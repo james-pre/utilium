@@ -1,36 +1,5 @@
-import { capitalize } from '../string.js';
 import { ClassLike } from '../types.js';
-
-type BitsToBytes = {
-	'8': 1;
-	'16': 2;
-	'32': 4;
-	'64': 8;
-};
-
-export type PrimitiveSize<T extends string> = T extends `${'int' | 'uint' | 'float'}${infer bits}` ? (bits extends keyof BitsToBytes ? BitsToBytes[bits] : never) : never;
-export type Primitive = `${'int' | 'uint'}${8 | 16 | 32 | 64}` | `float${32 | 64}`;
-export type ValidPrimitive = Primitive | Capitalize<Primitive> | 'char';
-
-export const primitives = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64'] satisfies Primitive[];
-
-export const validPrimitives = [...primitives, ...primitives.map(t => capitalize(t)), 'char'] satisfies ValidPrimitive[];
-
-export const numberRegex = /^(u?int)(8|16|32|64)|(float)(32|64)$/i;
-
-export type NormalizePrimitive<T extends ValidPrimitive> = T extends 'char' ? 'uint8' : Uncapitalize<T>;
-
-export function normalizePrimitive<T extends ValidPrimitive>(type: T): NormalizePrimitive<T> {
-	return (type == 'char' ? 'uint8' : type.toLowerCase()) as NormalizePrimitive<T>;
-}
-
-export function isPrimitiveType(type: { toString(): string }): type is Primitive {
-	return numberRegex.test(type.toString());
-}
-
-export function isValidPrimitive(type: { toString(): string }): type is ValidPrimitive {
-	return type == 'char' || numberRegex.test(type.toString().toLowerCase());
-}
+import * as primitive from './primitives.js';
 
 export interface MemberInit {
 	name: string;
@@ -51,7 +20,7 @@ export interface Options {
 }
 
 export interface Member {
-	type: Primitive | Static;
+	type: primitive.Type | Static;
 	offset: number;
 	length?: number;
 }
@@ -99,4 +68,4 @@ export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is In
 
 export type Like<T extends Metadata = Metadata> = InstanceLike<T> | StaticLike<T>;
 
-export type Size<T extends ValidPrimitive | StaticLike | InstanceLike> = T extends ValidPrimitive ? PrimitiveSize<T> : T extends Like<infer M> ? M['size'] : number;
+export type Size<T extends primitive.Valid | StaticLike | InstanceLike> = T extends primitive.Valid ? primitive.Size<T> : T extends Like<infer M> ? M['size'] : number;
