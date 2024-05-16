@@ -7,14 +7,14 @@ export { Struct };
 /**
  * Gets the size in bytes of a type
  */
-export function sizeof(type: Struct.ValidPrimitiveType | ClassLike | object): number {
+export function sizeof<T extends Struct.ValidPrimitive | Struct.StaticLike | Struct.InstanceLike>(type: T): Struct.Size<T> {
 	// primitive
 	if (typeof type == 'string') {
 		if (!Struct.isValidPrimitive(type)) {
 			throw new TypeError('Invalid primitive type: ' + type);
 		}
 
-		return +Struct.normalizePrimitive(type).match(Struct.numberRegex)![2] / 8;
+		return (+Struct.normalizePrimitive(type).match(Struct.numberRegex)![2] / 8) as Struct.Size<T>;
 	}
 
 	if (!Struct.isStruct(type)) {
@@ -23,7 +23,7 @@ export function sizeof(type: Struct.ValidPrimitiveType | ClassLike | object): nu
 
 	const meta: Struct.Metadata = Struct.isStatic(type) ? type[Struct.metadata] : type.constructor[Struct.metadata];
 
-	return meta.size;
+	return meta.size as Struct.Size<T>;
 }
 
 /**
@@ -62,7 +62,7 @@ export function struct(options: Partial<Struct.Options> = {}) {
 /**
  * Decorates a class member to be serialized
  */
-export function member(type: Struct.ValidPrimitiveType | ClassLike, length?: number) {
+export function member(type: Struct.ValidPrimitive | ClassLike, length?: number) {
 	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
 		let name = typeof context == 'object' ? context.name : context;
 		if (typeof name == 'symbol') {
@@ -196,7 +196,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
  */
 type Context = string | symbol | ClassMemberDecoratorContext;
 
-function _member<T extends Struct.ValidPrimitiveType>(type: T) {
+function _member<T extends Struct.ValidPrimitive>(type: T) {
 	function _(length: number): (target: object, context?: Context) => void;
 	function _(target: object, context?: Context): void;
 	function _(targetOrLength: object | number, context?: Context) {
@@ -214,4 +214,4 @@ function _member<T extends Struct.ValidPrimitiveType>(type: T) {
  *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
-export const types = Object.fromEntries(Struct.validPrimitiveTypes.map(t => [t, _member(t)])) as { [K in Struct.ValidPrimitiveType]: ReturnType<typeof _member<K>> };
+export const types = Object.fromEntries(Struct.validPrimitives.map(t => [t, _member(t)])) as { [K in Struct.ValidPrimitive]: ReturnType<typeof _member<K>> };
