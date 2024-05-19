@@ -85,37 +85,37 @@ export type Empty = [];
 /**
  * Removes the first element of T and shifts
  */
-export type Shift<T> = T extends unknown[] ? (((...x: T) => void) extends (h: any, ...t: infer I) => void ? I : []) : unknown;
+export type Shift<T extends unknown[]> = T extends [unknown, ...infer Rest] ? Rest : never;
 
 /**
  * Gets the first element of T
  */
-export type First<T> = T extends unknown[] ? (((...x: T) => void) extends (h: infer I, ...t: any) => void ? I : []) : never;
+export type First<T extends unknown[]> = T extends [infer F, ...unknown[]] ? F : never;
 
 /**
- * Inserts A into T at the start of T
+ * Inserts V into T at the start of T
  */
-export type Unshift<T, A> = T extends unknown[] ? (((h: A, ...t: T) => void) extends (...i: infer I) => void ? I : unknown) : never;
+export type Unshift<T extends unknown[], V> = [V, ...T];
 
 /**
  * Removes the last element of T
  */
-export type Pop<T> = T extends unknown[] ? (((...x: T) => void) extends (...i: [...infer I, any]) => void ? I : unknown) : never;
+export type Pop<T extends unknown[]> = T extends [...infer _, unknown] ? _ : never;
 
 /**
  * Gets the last element of T
  */
-export type Last<T> = T extends unknown[] ? (((...x: T) => void) extends (...i: [...infer H, infer I]) => void ? I : unknown) : never;
+export type Last<T extends unknown[]> = T extends [...unknown[], infer Last] ? Last : never;
 
 /**
- * Appends A to T
+ * Appends V to T
  */
-export type Push<T, A> = T extends unknown[] ? (((...a: [...T, A]) => void) extends (...i: infer I) => void ? I : unknown) : never;
+export type Push<T extends unknown[], V> = [...T, V];
 
 /**
  * Concats A and B
  */
-export type Concat<A, B> = { 0: A; 1: Concat<Unshift<A, 0>, Shift<B>> }[Empty extends B ? 0 : 1];
+export type Concat<A extends unknown[], B extends unknown[]> = Empty extends B ? A : Concat<Unshift<A, 0>, Shift<B>>;
 
 /**
  * Extracts from A what is not B
@@ -123,14 +123,14 @@ export type Concat<A, B> = { 0: A; 1: Concat<Unshift<A, 0>, Shift<B>> }[Empty ex
  * @remarks
  * It does not remove duplicates (so Remove\<[0, 0, 0], [0, 0]\> yields [0]). This is intended and necessary behavior.
  */
-export type Remove<A, B> = { 0: A; 1: Remove<Shift<A>, Shift<B>> }[Empty extends B ? 0 : 1];
+export type Remove<A extends unknown[], B extends unknown[]> = Empty extends B ? A : Remove<Shift<A>, Shift<B>>;
 
 /**
  * The length of T
  */
-export type Length<T> = T extends { length: number } ? T['length'] : never;
+export type Length<T extends { length: number }> = T['length'];
 
-type _FromLength<N extends number, R = Empty> = { 0: R; 1: _FromLength<N, Unshift<R, 0>> }[Length<R> extends N ? 0 : 1];
+type _FromLength<N extends number, R extends unknown[] = Empty> = Length<R> extends N ? R : _FromLength<N, Unshift<R, 0>>;
 
 /**
  * Creates a tuple of length N
@@ -202,3 +202,21 @@ export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer
 export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
 export type ClassLike<Instance = unknown> = abstract new (...args: unknown[]) => Instance;
+
+/**
+ * Converts a union to an intersection
+ * @see https://stackoverflow.com/a/55128956/17637456
+ */
+export type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
+
+/**
+ * Gets the last element of a union
+ * @see https://stackoverflow.com/a/55128956/17637456
+ */
+export type LastOfUnion<T> = UnionToIntersection<T extends any ? () => T : never> extends () => infer R ? R : never;
+
+/**
+ * Converts a union to a tuple
+ * @see https://stackoverflow.com/a/55128956/17637456
+ */
+export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N ? [] : Push<UnionToTuple<Exclude<T, L>>, L>;

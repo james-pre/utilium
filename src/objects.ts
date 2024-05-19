@@ -1,4 +1,5 @@
 import type * as FS from 'fs';
+import { UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(object: O, predicate: (key: keyof O, value: O[keyof O]) => boolean): R {
 	const entries = <[keyof O, O[keyof O]][]>Object.entries(object);
@@ -31,6 +32,11 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 		}
 	}
 }
+
+/**
+ * Entries of T
+ */
+export type Entries<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]>;
 
 export function isJSON(str: string) {
 	try {
@@ -262,13 +268,4 @@ export function resolveConstructors(object: object): string[] {
 		constructors.push(prototype.constructor.name);
 	}
 	return constructors;
-}
-
-/**
- * Gets a random int, r, with the probability P(r) = (base)**r
- * For example, with a probability of 1/2: P(1) = 1/2, P(2) = 1/4, etc.
- * @param probability the probability
- */
-export function getRandomIntWithRecursiveProbability(probability = 0.5): number {
-	return -Math.floor(Math.log(Math.random()) / Math.log(1 / probability));
 }
