@@ -166,7 +166,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 				if (object[key] === null || object[key] === undefined) {
 					continue;
 				}
-				deserialize(object[key], new Uint8Array(buffer.slice(iOff, sizeof(type))));
+				deserialize(object[key], new Uint8Array(buffer.slice(iOff, iOff + sizeof(type))));
 				continue;
 			}
 
