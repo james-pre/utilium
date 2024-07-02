@@ -220,3 +220,9 @@ export type LastOfUnion<T> = UnionToIntersection<T extends any ? () => T : never
  * @see https://stackoverflow.com/a/55128956/17637456
  */
 export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N ? [] : Push<UnionToTuple<Exclude<T, L>>, L>;
+
+/**
+ * Makes properties with keys assignable to K in T required
+ * @see https://stackoverflow.com/a/69328045/17637456
+ */
+export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
