@@ -1,6 +1,6 @@
 import { EventEmitter } from 'eventemitter3';
 
-export class List<T> extends EventEmitter<'update'> implements Set<T> {
+export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeIndexable<T> {
 	public readonly [Symbol.toStringTag] = 'List';
 
 	protected data = new Set<T>();
@@ -10,11 +10,71 @@ export class List<T> extends EventEmitter<'update'> implements Set<T> {
 	}
 
 	public json() {
-		return JSON.stringify(this.array());
+		return JSON.stringify([...this.data]);
 	}
 
 	public toString() {
-		return this.array().join('\n');
+		return this.join(',');
+	}
+
+	public set(index: number, value: T): void {
+		if (Math.abs(index) > this.data.size) {
+			throw new ReferenceError('Can not set an element outside the bounds of the list');
+		}
+
+		const data = [...this.data];
+		data.splice(index, 1, value);
+		this.data = new Set<T>(data);
+		this.emit('update');
+	}
+
+	public deleteAt(index: number): void {
+		if (Math.abs(index) > this.data.size) {
+			throw new ReferenceError('Can not delete an element outside the bounds of the list');
+		}
+
+		this.delete([...this.data].at(index)!);
+	}
+
+	// Array methods
+
+	public at(index: number): T {
+		if (Math.abs(index) > this.data.size) {
+			throw new ReferenceError('Can not access an element outside the bounds of the list');
+		}
+
+		return [...this.data].at(index)!;
+	}
+
+	public pop(): T | undefined {
+		const item = [...this.data].pop();
+		if (item !== undefined) {
+			this.delete(item);
+		}
+		return item;
+	}
+
+	public push(...items: T[]): number {
+		for (const item of items) {
+			this.add(item);
+		}
+		return this.data.size;
+	}
+
+	public join(separator?: string): string {
+		return [...this.data].join(separator);
+	}
+
+	public splice(start: number, deleteCount: number, ...items: T[]): T[] {
+		if (Math.abs(start) > this.data.size) {
+			throw new ReferenceError('Can not splice elements outside the bounds of the list');
+		}
+
+		const data = [...this.data];
+		const deleted = data.splice(start, deleteCount, ...items);
+		this.data = new Set<T>(data);
+		this.emit('update');
+		return deleted;
 	}
 
 	// Set methods
@@ -37,8 +97,8 @@ export class List<T> extends EventEmitter<'update'> implements Set<T> {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public forEach(callbackfn: (value: T, value2: T, set: Set<T>) => void, thisArg?: any): void {
-		this.data.forEach(callbackfn, thisArg);
+	public forEach(callbackfn: (value: T, value2: T, list: List<T>) => void, thisArg?: any): void {
+		this.data.forEach((v1, v2) => callbackfn.call(thisArg, v1, v2, this));
 	}
 
 	public has(value: T): boolean {
