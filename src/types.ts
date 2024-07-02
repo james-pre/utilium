@@ -172,7 +172,8 @@ export type FlattenArray<A extends unknown[], D = null> = A extends (infer U)[] 
 /**
  * Whether T is a tuple
  */
-export type IsTuple<T> = T extends [] ? false : T extends [infer Head, ...infer Rest] ? true : false;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type IsTuple<T> = T extends [] ? false : T extends [infer _Head, ...infer _Rest] ? true : false;
 
 /**
  * Flattens a tuple

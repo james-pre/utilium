@@ -113,7 +113,7 @@ export interface JSONFileMapOptions {
 	overwrite_invalid_json: boolean;
 
 	/**
-	 *
+	 * FS module
 	 */
 	fs: typeof FS;
 }
