@@ -1,3 +1,4 @@
+export * from './fs.js';
 export * from './list.js';
 export * from './misc.js';
 export * from './numbers.js';
