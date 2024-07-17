@@ -1,18 +1,5 @@
 import { isJSON } from './objects.js';
-
-type fs = typeof import('fs');
-
-let fs: fs;
-
-const defaultFS = import('fs').then(_ => (fs = _));
-
-export async function whenDefaultFSDone(): Promise<void> {
-	await defaultFS;
-}
-
-export function useFS(_fs: fs): void {
-	fs = _fs;
-}
+import * as fs from 'fs';
 
 export abstract class FileMap<V> implements Map<string, V> {
 	public get [Symbol.toStringTag](): string {
@@ -22,10 +9,6 @@ export abstract class FileMap<V> implements Map<string, V> {
 	public constructor(protected readonly path: string) {
 		if (!path) {
 			throw new ReferenceError('No path specified');
-		}
-
-		if (!fs) {
-			throw new ReferenceError('No filesystem API');
 		}
 	}
 
