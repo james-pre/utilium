@@ -218,7 +218,7 @@ export class FolderMap extends FileMap<string> {
 }
 
 export function gitCommitHash(repo: string = '.'): string {
-	repo = repo.replaceAll(/\/+/, '/').replaceAll(/\/$/, '');
+	repo = repo.replaceAll(/\/+/g, '/').replaceAll(/\/$/g, '');
 	const rev = fs
 		.readFileSync(repo + '.git/HEAD')
 		.toString()
