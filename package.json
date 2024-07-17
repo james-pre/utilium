@@ -5,6 +5,9 @@
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"type": "module",
+	"exports": {
+		"./*": "./dist/*"
+	},
 	"scripts": {
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
