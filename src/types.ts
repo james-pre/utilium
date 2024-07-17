@@ -227,3 +227,8 @@ export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true :
  * @see https://stackoverflow.com/a/69328045/17637456
  */
 export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
+
+/**
+ * Makes properties with keys assignable to K in T optional
+ */
+export type WithOptional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
