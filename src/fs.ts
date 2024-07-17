@@ -220,14 +220,14 @@ export class FolderMap extends FileMap<string> {
 export function gitCommitHash(repo: string = '.'): string {
 	repo = repo.replaceAll(/\/+/g, '/').replaceAll(/\/$/g, '');
 	const rev = fs
-		.readFileSync(repo + '.git/HEAD')
+		.readFileSync(repo + '/.git/HEAD')
 		.toString()
 		.trim();
 	if (rev.indexOf(':') === -1) {
 		return rev;
 	} else {
 		return fs
-			.readFileSync(repo + '.git/' + rev.substring(5))
+			.readFileSync(repo + '/.git/' + rev.substring(5))
 			.toString()
 			.trim();
 	}
