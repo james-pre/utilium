@@ -19,14 +19,14 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/dr-vortex/utilium.git"
+		"url": "git+https://github.com/james-pre/utilium.git"
 	},
-	"author": "James P. <jp@drvortex.dev> (https://drvortex.dev)",
+	"author": "James Prevett <jp@jamespre.dev> (https://jamespre.dev)",
 	"license": "MIT",
 	"bugs": {
-		"url": "https://github.com/dr-vortex/utilium/issues"
+		"url": "https://github.com/james-pre/utilium/issues"
 	},
-	"homepage": "https://github.com/dr-vortex/utilium#readme",
+	"homepage": "https://github.com/james-pre/utilium#readme",
 	"devDependencies": {
 		"@types/node": "^20.12.7",
 		"@typescript-eslint/eslint-plugin": "^6.2.0",
