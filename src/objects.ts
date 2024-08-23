@@ -55,3 +55,7 @@ export function resolveConstructors(object: object): string[] {
 	}
 	return constructors;
 }
+
+export function map<const T extends Partial<Record<any, any>>>(items: T): Map<keyof T, T[keyof T]> {
+	return new Map(Object.entries(items) as [keyof T, T[keyof T]][]);
+}
