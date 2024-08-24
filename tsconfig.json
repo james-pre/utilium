@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {
-		"lib": ["ESNext"],
+		"lib": ["ES2023"],
 		"module": "NodeNext",
-		"target": "ESNext",
+		"target": "ES2023",
 		"moduleResolution": "NodeNext",
 		"outDir": "dist",
 		"typeRoots": ["node_modules/@types"],
