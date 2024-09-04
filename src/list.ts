@@ -3,6 +3,13 @@ import { EventEmitter } from 'eventemitter3';
 export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeIndexable<T> {
 	public readonly [Symbol.toStringTag] = 'List';
 
+	public constructor(values?: readonly T[] | Iterable<T> | null) {
+		super();
+		if (values) {
+			this.push(...values);
+		}
+	}
+
 	protected data = new Set<T>();
 
 	public array(): T[] {
@@ -94,6 +101,34 @@ export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeI
 		const success = this.data.delete(value);
 		this.emit('update');
 		return success;
+	}
+
+	public union<U>(other: ReadonlySetLike<U>): List<T | U> {
+		return new List(this.data.union(other));
+	}
+
+	public intersection<U>(other: ReadonlySetLike<U>): List<T & U> {
+		return new List(this.data.intersection(other));
+	}
+
+	public difference<U>(other: ReadonlySetLike<U>): List<T> {
+		return new List(this.data.difference(other));
+	}
+
+	public symmetricDifference<U>(other: ReadonlySetLike<U>): List<T | U> {
+		return new List(this.data.symmetricDifference(other));
+	}
+
+	public isSubsetOf(other: ReadonlySetLike<unknown>): boolean {
+		return this.data.isSubsetOf(other);
+	}
+
+	public isSupersetOf(other: ReadonlySetLike<unknown>): boolean {
+		return this.data.isSupersetOf(other);
+	}
+
+	public isDisjointFrom(other: ReadonlySetLike<unknown>): boolean {
+		return this.data.isDisjointFrom(other);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
