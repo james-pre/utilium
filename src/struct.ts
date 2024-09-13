@@ -1,29 +1,44 @@
-import * as Struct from './internal/struct.js';
+import * as primitive from './internal/primitives.js';
+import {
+	DecoratorContext,
+	InstanceLike,
+	MemberInit,
+	Metadata,
+	Options,
+	Size,
+	StaticLike,
+	symbol_metadata,
+	init,
+	isInstance,
+	isStatic,
+	isStruct,
+	metadata,
+	type MemberContext,
+} from './internal/struct.js';
 import { capitalize } from './string.js';
 import { ClassLike } from './types.js';
-import * as primitive from './internal/primitives.js';
-export { Struct };
+export * as Struct from './internal/struct.js';
 
 /**
  * Gets the size in bytes of a type
  */
-export function sizeof<T extends primitive.Valid | Struct.StaticLike | Struct.InstanceLike>(type: T): Struct.Size<T> {
+export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(type: T): Size<T> {
 	// primitive
 	if (typeof type == 'string') {
 		if (!primitive.isValid(type)) {
 			throw new TypeError('Invalid primitive type: ' + type);
 		}
 
-		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Struct.Size<T>;
+		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
 	}
 
-	if (!Struct.isStruct(type)) {
+	if (!isStruct(type)) {
 		throw new TypeError('Not a struct');
 	}
 
-	const meta: Struct.Metadata = Struct.isStatic(type) ? type[Struct.metadata] : type.constructor[Struct.metadata];
+	const struct = isStatic(type) ? type : type.constructor;
 
-	return meta.size as Struct.Size<T>;
+	return struct[symbol_metadata(struct)][metadata].size as Size<T>;
 }
 
 /**
@@ -36,14 +51,15 @@ export function align(value: number, alignment: number): number {
 /**
  * Decorates a class as a struct
  */
-export function struct(options: Partial<Struct.Options> = {}) {
+export function struct(options: Partial<Options> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	return function (target: Struct.StaticLike, _?: ClassDecoratorContext) {
-		target[Struct.init] ||= [];
+	return function __decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
+		context.metadata[init] ||= [];
 		let size = 0;
 		const members = new Map();
-		for (const { name, type, length } of target[Struct.init]) {
-			if (!primitive.isValid(type) && !Struct.isStatic(type)) {
+		for (const _ of context.metadata[init]) {
+			const { name, type, length } = _;
+			if (!primitive.isValid(type) && !isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
@@ -55,7 +71,8 @@ export function struct(options: Partial<Struct.Options> = {}) {
 			size = align(size, options.align || 1);
 		}
 
-		target[Struct.metadata] = { options, members, size } satisfies Struct.Metadata;
+		context.metadata[metadata] = { options, members, size } satisfies Metadata;
+		return target;
 	};
 }
 
@@ -63,8 +80,8 @@ export function struct(options: Partial<Struct.Options> = {}) {
  * Decorates a class member to be serialized
  */
 export function member(type: primitive.Valid | ClassLike, length?: number) {
-	return function (target: object, context?: ClassMemberDecoratorContext | string | symbol) {
-		let name = typeof context == 'object' ? context.name : context;
+	return function <V>(value: V, context: MemberContext): V {
+		let name = context.name;
 		if (typeof name == 'symbol') {
 			console.warn('Symbol used for struct member name will be coerced to string: ' + name.toString());
 			name = name.toString();
@@ -74,18 +91,9 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
 			throw new ReferenceError('Invalid name for struct member');
 		}
 
-		if (typeof target != 'object') {
-			throw new TypeError('Invalid member for struct field');
-		}
-
-		if (!('constructor' in target)) {
-			throw new TypeError('Invalid member for struct field');
-		}
-
-		const struct = (target as Struct.InstanceLike).constructor;
-
-		struct[Struct.init] ||= [];
-		struct[Struct.init].push({ name, type, length } satisfies Struct.MemberInit);
+		context.metadata[init] ||= [];
+		context.metadata[init].push({ name, type, length } satisfies MemberInit);
+		return value;
 	};
 }
 
@@ -93,10 +101,10 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
-	if (!Struct.isInstance(instance)) {
+	if (!isInstance(instance)) {
 		throw new TypeError('Can not serialize, not a struct instance');
 	}
-	const { options, members } = instance.constructor[Struct.metadata];
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
 
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
@@ -139,10 +147,10 @@ export function serialize(instance: unknown): Uint8Array {
  * Deserializes a struct from a Uint8Array
  */
 export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
-	if (!Struct.isInstance(instance)) {
+	if (!isInstance(instance)) {
 		throw new TypeError('Can not deserialize, not a struct instance');
 	}
-	const { options, members } = instance.constructor[Struct.metadata];
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
 
 	const buffer = new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
@@ -191,22 +199,17 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 	}
 }
 
-/**
- * Also can be a name when legacy decorators are used
- */
-type Context = string | symbol | ClassMemberDecoratorContext;
-
 function _member<T extends primitive.Valid>(type: T) {
-	function _(length: number): (target: object, context?: Context) => void;
-	function _(target: object, context?: Context): void;
-	function _(targetOrLength: object | number, context?: Context) {
-		if (typeof targetOrLength == 'number') {
-			return member(type, targetOrLength);
+	function _structMemberDecorator<const V>(length: number): (value: V, context: MemberContext) => V;
+	function _structMemberDecorator<const V>(value: V, context: MemberContext): V;
+	function _structMemberDecorator<const V>(valueOrLength: V | number, context?: MemberContext): V | ((value: V, context: MemberContext) => V) {
+		if (typeof valueOrLength == 'number') {
+			return member(type, valueOrLength);
 		}
 
-		return member(type)(targetOrLength, context);
+		return member(type)(valueOrLength, context!);
 	}
-	return _;
+	return _structMemberDecorator;
 }
 
 /**

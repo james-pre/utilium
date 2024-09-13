@@ -7,9 +7,7 @@ export interface MemberInit {
 	length?: number;
 }
 
-export const init = Symbol('struct_init');
-
-export type init = typeof init;
+export const init: unique symbol = Symbol('struct_init');
 
 /**
  * Options for struct initialization
@@ -31,23 +29,53 @@ export interface Metadata {
 	size: number;
 }
 
-export const metadata = Symbol('struct');
+export const metadata: unique symbol = Symbol('struct');
 
-export type metadata = typeof metadata;
-
-export interface Static<T extends Metadata = Metadata> {
-	[metadata]: T;
-	new (): Instance;
-	prototype: Instance;
-}
-
-export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
+export interface _DecoratorMetadata<T extends Metadata = Metadata> extends DecoratorMetadata {
 	[metadata]?: T;
 	[init]?: MemberInit[];
 }
 
+export interface DecoratorContext<T extends Metadata = Metadata> {
+	metadata: _DecoratorMetadata<T>;
+}
+
+export type MemberContext = ClassMemberDecoratorContext & DecoratorContext;
+
+export interface Static<T extends Metadata = Metadata> {
+	[Symbol.metadata]: DecoratorMetadata & {
+		[metadata]: T;
+	};
+	new (): Instance<T>;
+	prototype: Instance<T>;
+}
+
+export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
+	[Symbol.metadata]?: _DecoratorMetadata<T> | null;
+}
+
+export function isValidMetadata<T extends Metadata = Metadata>(
+	arg: unknown
+): arg is DecoratorMetadata & {
+	[metadata]: T;
+} {
+	return arg != null && typeof arg == 'object' && metadata in arg;
+}
+
+/**
+ * Gets a reference to Symbol.metadata, even on platforms that do not expose it globally (like Node)
+ */
+export function symbol_metadata(arg: ClassLike): typeof Symbol.metadata {
+	const symbol_metadata = Symbol.metadata || Object.getOwnPropertySymbols(arg).find(s => s.description == 'Symbol.metadata');
+	if (!symbol_metadata) {
+		throw new ReferenceError('Could not get a reference to Symbol.metadata');
+	}
+
+	return symbol_metadata as typeof Symbol.metadata;
+}
+
 export function isStatic<T extends Metadata = Metadata>(arg: unknown): arg is Static<T> {
-	return typeof arg == 'function' && metadata in arg;
+	return typeof arg == 'function' && symbol_metadata(arg as ClassLike) in arg && isValidMetadata(arg[symbol_metadata(arg as ClassLike)]);
 }
 
 export interface Instance<T extends Metadata = Metadata> {
@@ -59,7 +87,7 @@ export interface InstanceLike<T extends Metadata = Metadata> {
 }
 
 export function isInstance<T extends Metadata = Metadata>(arg: unknown): arg is Instance<T> {
-	return metadata in (arg?.constructor || {});
+	return arg != null && typeof arg == 'object' && isStatic(arg.constructor);
 }
 
 export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is Instance<T> | Static<T> {
