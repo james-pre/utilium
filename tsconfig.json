@@ -16,6 +16,6 @@
 		"entryPoints": ["src/index.ts"],
 		"out": "docs"
 	},
-	"include": ["./src/**/*.ts"],
+	"include": ["./src/**/*.ts", "./test/**/*.ts"],
 	"exclude": ["node_modules"]
 }
