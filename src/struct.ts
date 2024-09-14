@@ -54,6 +54,7 @@ export function align(value: number, alignment: number): number {
 export function struct(options: Partial<Options> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	return function __decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
+		context.metadata ??= {};
 		context.metadata[init] ||= [];
 		let size = 0;
 		const members = new Map();
@@ -91,6 +92,7 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
 			throw new ReferenceError('Invalid name for struct member');
 		}
 
+		context.metadata ??= {};
 		context.metadata[init] ||= [];
 		context.metadata[init].push({ name, type, length } satisfies MemberInit);
 		return value;
