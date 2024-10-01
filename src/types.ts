@@ -202,7 +202,7 @@ export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer
  */
 export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
-export type ClassLike<Instance = unknown> = abstract new (...args: unknown[]) => Instance;
+export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
 
 /**
  * Converts a union to an intersection
