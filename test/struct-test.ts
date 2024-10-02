@@ -2,6 +2,11 @@ import { writeFileSync } from 'fs';
 import { deserialize, member, serialize, struct, types as t } from '../src/struct.js';
 import { join } from 'path';
 
+enum Some {
+	thing = 1,
+	one = 2,
+}
+
 @struct()
 class Header {
 	@t.char(4) public readonly magic_start = 'test';
@@ -14,6 +19,8 @@ class Header {
 @struct()
 class AnotherHeader extends Header {
 	@t.uint64 public _plus = 0x12345678;
+
+	@t.uint16 public some: Some = Some.thing;
 }
 
 @struct()
