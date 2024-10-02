@@ -1,6 +1,6 @@
 import { EventEmitter } from 'eventemitter3';
 
-export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeIndexable<T> {
+export class List<T> extends EventEmitter<'update'> implements RelativeIndexable<T> {
 	public readonly [Symbol.toStringTag] = 'List';
 
 	public constructor(values?: readonly T[] | Iterable<T> | null) {
@@ -12,11 +12,15 @@ export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeI
 
 	protected data = new Set<T>();
 
-	public array(): T[] {
+	public toSet(): Set<T> {
+		return new Set(this.data);
+	}
+
+	public toArray(): T[] {
 		return [...this.data];
 	}
 
-	public json() {
+	public toJSON() {
 		return JSON.stringify([...this.data]);
 	}
 
@@ -101,39 +105,6 @@ export class List<T> extends EventEmitter<'update'> implements Set<T>, RelativeI
 		const success = this.data.delete(value);
 		this.emit('update');
 		return success;
-	}
-
-	public union<U>(other: ReadonlySetLike<U>): List<T | U> {
-		return new List(this.data.union(other));
-	}
-
-	public intersection<U>(other: ReadonlySetLike<U>): List<T & U> {
-		return new List(this.data.intersection(other));
-	}
-
-	public difference<U>(other: ReadonlySetLike<U>): List<T> {
-		return new List(this.data.difference(other));
-	}
-
-	public symmetricDifference<U>(other: ReadonlySetLike<U>): List<T | U> {
-		return new List(this.data.symmetricDifference(other));
-	}
-
-	public isSubsetOf(other: ReadonlySetLike<unknown>): boolean {
-		return this.data.isSubsetOf(other);
-	}
-
-	public isSupersetOf(other: ReadonlySetLike<unknown>): boolean {
-		return this.data.isSupersetOf(other);
-	}
-
-	public isDisjointFrom(other: ReadonlySetLike<unknown>): boolean {
-		return this.data.isDisjointFrom(other);
-	}
-
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public forEach(callbackfn: (value: T, value2: T, list: List<T>) => void, thisArg?: any): void {
-		this.data.forEach((v1, v2) => callbackfn.call(thisArg, v1, v2, this));
 	}
 
 	public has(value: T): boolean {
