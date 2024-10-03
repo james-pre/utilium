@@ -1,6 +1,7 @@
 import { writeFileSync } from 'fs';
 import { deserialize, member, serialize, struct, types as t } from '../src/struct.js';
 import { join } from 'path';
+import assert from 'node:assert';
 
 enum Some {
 	thing = 1,
@@ -13,7 +14,7 @@ class Header {
 
 	@t.uint16 public segments: number = 0;
 
-	@t.char(4) public readonly magic_end = 'end';
+	@t.char(4) public readonly magic_end = 'end\0';
 }
 
 @struct()
@@ -55,5 +56,11 @@ writeFileSync(join(import.meta.dirname, '../tmp/bin'), bin);
 
 const omg = new BinObject();
 deserialize(omg, bin);
+
+assert.equal(omg.header.magic_start, obj.header.magic_start);
+assert.equal(omg.header.segments, obj.header.segments);
+assert.equal(omg.header.magic_end, obj.header.magic_end);
+assert.equal(omg.header._plus, obj.header._plus);
+assert.equal(omg.comment, obj.comment.slice(0, 32));
 
 console.log(omg);

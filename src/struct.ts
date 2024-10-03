@@ -148,7 +148,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 
 	const buffer = new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
-	const view = new DataView(buffer.buffer);
+	const view = new DataView(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
 
 	for (const [name, { type, offset, length }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
