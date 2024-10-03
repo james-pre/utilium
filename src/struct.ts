@@ -1,18 +1,19 @@
 import * as primitive from './internal/primitives.js';
 import {
+	checkInstance,
+	checkStruct,
 	DecoratorContext,
+	init,
 	InstanceLike,
+	isStatic,
+	isStruct,
 	MemberInit,
 	Metadata,
+	metadata,
 	Options,
 	Size,
 	StaticLike,
 	symbol_metadata,
-	init,
-	isInstance,
-	isStatic,
-	isStruct,
-	metadata,
 	type MemberContext,
 } from './internal/struct.js';
 import { capitalize } from './string.js';
@@ -25,16 +26,12 @@ export * as Struct from './internal/struct.js';
 export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(type: T): Size<T> {
 	// primitive
 	if (typeof type == 'string') {
-		if (!primitive.isValid(type)) {
-			throw new TypeError('Invalid primitive type: ' + type);
-		}
+		primitive.checkValid(type);
 
 		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
 	}
 
-	if (!isStruct(type)) {
-		throw new TypeError('Not a struct');
-	}
+	checkStruct(type);
 
 	const struct = isStatic(type) ? type : type.constructor;
 
@@ -53,7 +50,7 @@ export function align(value: number, alignment: number): number {
  */
 export function struct(options: Partial<Options> = {}) {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	return function __decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
+	return function _decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
 		context.metadata ??= {};
 		context.metadata[init] ||= [];
 		let size = 0;
@@ -103,9 +100,7 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
-	if (!isInstance(instance)) {
-		throw new TypeError('Can not serialize, not a struct instance');
-	}
+	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
 
 	const buffer = new Uint8Array(sizeof(instance));
@@ -149,9 +144,7 @@ export function serialize(instance: unknown): Uint8Array {
  * Deserializes a struct from a Uint8Array
  */
 export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
-	if (!isInstance(instance)) {
-		throw new TypeError('Can not deserialize, not a struct instance');
-	}
+	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
 
 	const buffer = new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);

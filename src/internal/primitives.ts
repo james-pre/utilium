@@ -30,3 +30,9 @@ export function isType(type: { toString(): string }): type is Type {
 export function isValid(type: { toString(): string }): type is Valid {
 	return type == 'char' || regex.test(type.toString().toLowerCase());
 }
+
+export function checkValid(type: { toString(): string }): asserts type is Valid {
+	if (!isValid(type)) {
+		throw new TypeError('Not a valid primitive type: ' + type);
+	}
+}
