@@ -6,7 +6,6 @@ import {
 	init,
 	InstanceLike,
 	isStatic,
-	isStruct,
 	MemberInit,
 	Metadata,
 	metadata,
