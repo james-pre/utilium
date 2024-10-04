@@ -146,7 +146,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
 
-	const buffer = new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
+	const buffer = _buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
 	const view = new DataView(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
 
