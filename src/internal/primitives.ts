@@ -15,7 +15,7 @@ export const types = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'in
 
 export const valids = [...types, ...types.map(t => capitalize(t)), 'char'] satisfies Valid[];
 
-export const regex = /^(u?int)(8|16|32|64)|(float)(32|64)$/i;
+export const regex = /^(u?int|float)(8|16|32|64)$/i;
 
 export type Normalize<T extends Valid> = T extends 'char' ? 'uint8' : Uncapitalize<T>;
 
