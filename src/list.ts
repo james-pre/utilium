@@ -17,11 +17,11 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 	}
 
 	public toArray(): T[] {
-		return [...this.data];
+		return Array.from(this.data);
 	}
 
 	public toJSON() {
-		return JSON.stringify([...this.data]);
+		return JSON.stringify(Array.from(this.data));
 	}
 
 	public toString() {
@@ -33,7 +33,7 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 			throw new ReferenceError('Can not set an element outside the bounds of the list');
 		}
 
-		const data = [...this.data];
+		const data = Array.from(this.data);
 		data.splice(index, 1, value);
 		this.data = new Set<T>(data);
 		this.emit('update');
@@ -44,7 +44,7 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 			throw new ReferenceError('Can not delete an element outside the bounds of the list');
 		}
 
-		this.delete([...this.data].at(index)!);
+		this.delete(Array.from(this.data).at(index)!);
 	}
 
 	// Array methods
@@ -54,11 +54,11 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 			throw new ReferenceError('Can not access an element outside the bounds of the list');
 		}
 
-		return [...this.data].at(index)!;
+		return Array.from(this.data).at(index)!;
 	}
 
 	public pop(): T | undefined {
-		const item = [...this.data].pop();
+		const item = Array.from(this.data).pop();
 		if (item !== undefined) {
 			this.delete(item);
 		}
@@ -73,7 +73,7 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 	}
 
 	public join(separator?: string): string {
-		return [...this.data].join(separator);
+		return Array.from(this.data).join(separator);
 	}
 
 	public splice(start: number, deleteCount: number, ...items: T[]): T[] {
@@ -81,7 +81,7 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 			throw new ReferenceError('Can not splice elements outside the bounds of the list');
 		}
 
-		const data = [...this.data];
+		const data = Array.from(this.data);
 		const deleted = data.splice(start, deleteCount, ...items);
 		this.data = new Set<T>(data);
 		this.emit('update');
