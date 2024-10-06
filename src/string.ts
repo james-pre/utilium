@@ -1,9 +1,9 @@
 export function capitalize<T extends string>(value: T): Capitalize<T> {
-	return <Capitalize<T>>(value.at(0)!.toUpperCase() + value.slice(1));
+	return value.at(0)!.toUpperCase() + value.slice(1) as Capitalize<T>;
 }
 
 export function uncapitalize<T extends string>(value: T): Uncapitalize<T> {
-	return <Uncapitalize<T>>(value.at(0)!.toLowerCase() + value.slice(1));
+	return value.at(0)!.toLowerCase() + value.slice(1) as Uncapitalize<T>;
 }
 
 export type ConcatString<T extends string[]> = T extends [infer F extends string, ...infer R extends string[]] ? `${F}${ConcatString<R>}` : '';

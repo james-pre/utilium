@@ -28,7 +28,7 @@ export type ExtractProperties<T, P> = {
  * Extract the keys of T which are required
  * @see https://stackoverflow.com/a/55247867/17637456
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type RequiredKeys<T> = { [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K }[keyof T];
 
 /**

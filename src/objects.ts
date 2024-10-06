@@ -1,14 +1,14 @@
-import { UnionToTuple } from './types.js';
+import type { UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(object: O, predicate: (key: keyof O, value: O[keyof O]) => boolean): R {
-	const entries = <[keyof O, O[keyof O]][]>Object.entries(object);
-	return <R>Object.fromEntries(entries.filter(([key, value]) => predicate(key, value)));
+	const entries = Object.entries(object) as [keyof O, O[keyof O]][];
+	return Object.fromEntries(entries.filter(([key, value]) => predicate(key, value))) as R;
 }
 
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[]): Pick<T, K>;
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly (readonly K[])[]): Pick<T, K>;
 export function pick<T extends object, K extends keyof T>(object: T, ...keys: readonly K[] | readonly (readonly K[])[]): Pick<T, K> {
-	const picked = <Pick<T, K>>{};
+	const picked = {} as Pick<T, K>;
 	for (const key of keys.flat() as K[]) {
 		picked[key] = object[key];
 	}

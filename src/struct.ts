@@ -1,22 +1,8 @@
 import * as primitive from './internal/primitives.js';
-import {
-	checkInstance,
-	checkStruct,
-	DecoratorContext,
-	init,
-	InstanceLike,
-	isStatic,
-	MemberInit,
-	Metadata,
-	metadata,
-	Options,
-	Size,
-	StaticLike,
-	symbol_metadata,
-	type MemberContext,
-} from './internal/struct.js';
+import type { DecoratorContext, InstanceLike, Member, MemberInit, Metadata, Options, Size, StaticLike } from './internal/struct.js';
+import { checkInstance, checkStruct, init, isStatic, metadata, symbol_metadata, type MemberContext } from './internal/struct.js';
 import { capitalize } from './string.js';
-import { ClassLike } from './types.js';
+import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
 
 /**
@@ -48,12 +34,11 @@ export function align(value: number, alignment: number): number {
  * Decorates a class as a struct
  */
 export function struct(options: Partial<Options> = {}) {
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	return function _decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
 		context.metadata ??= {};
 		context.metadata[init] ||= [];
 		let size = 0;
-		const members = new Map();
+		const members = new Map<string, Member>();
 		for (const _ of context.metadata[init]) {
 			const { name, type, length } = _;
 			if (!primitive.isValid(type) && !isStatic(type)) {
@@ -121,7 +106,7 @@ export function serialize(instance: unknown): Uint8Array {
 			}
 
 			const Type = capitalize(type);
-			const fn = <`set${typeof Type}`>('set' + Type);
+			const fn = ('set' + Type) as `set${typeof Type}`;
 			if (fn == 'setInt64') {
 				view.setBigInt64(iOff, BigInt(value), !options.bigEndian);
 				continue;
@@ -177,7 +162,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBuffe
 			}
 
 			const Type = capitalize(type);
-			const fn = <`get${typeof Type}`>('get' + Type);
+			const fn = ('get' + Type) as `get${typeof Type}`;
 			if (fn == 'getInt64') {
 				object[key] = view.getBigInt64(iOff, !options.bigEndian);
 				continue;

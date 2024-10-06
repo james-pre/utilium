@@ -1,5 +1,5 @@
-import { ClassLike } from '../types.js';
-import * as primitive from './primitives.js';
+import type { ClassLike } from '../types.js';
+import type * as primitive from './primitives.js';
 
 export interface MemberInit {
 	name: string;
@@ -92,7 +92,7 @@ export function isInstance<T extends Metadata = Metadata>(arg: unknown): arg is 
 
 export function checkInstance<T extends Metadata = Metadata>(arg: unknown): asserts arg is Instance<T> {
 	if (!isInstance(arg)) {
-		throw new TypeError((typeof arg == 'function' ? arg.name : 'object' && arg ? arg.constructor.name : arg) + ' is not a struct instance');
+		throw new TypeError((typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg) + ' is not a struct instance');
 	}
 }
 
@@ -102,7 +102,7 @@ export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is In
 
 export function checkStruct<T extends Metadata = Metadata>(arg: unknown): asserts arg is Instance<T> | Static<T> {
 	if (!isStruct(arg)) {
-		throw new TypeError((typeof arg == 'function' ? arg.name : 'object' && arg ? arg.constructor.name : arg) + ' is not a struct');
+		throw new TypeError((typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg) + ' is not a struct');
 	}
 }
 
