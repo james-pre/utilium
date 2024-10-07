@@ -30,6 +30,8 @@ export type Parse<T extends Full, StripCore extends boolean> = T extends `${infe
 			}
 		: never;
 
+export const regex = /^(?<core>\d+\.\d+\.\d+)(?:[-_](?<type>[^-_.]+)[-_.](?<pre>\d*(?:\.\d+)*))?/;
+
 /**
  * Parses a semver version, including compile-time results
  * @param full the full version to parse
@@ -38,7 +40,7 @@ export type Parse<T extends Full, StripCore extends boolean> = T extends `${infe
 export function parse<const T extends Full>(full: T): Parse<T, false>;
 export function parse<const T extends Full, const S extends boolean>(full: T, stripCore: S): Parse<T, S>;
 export function parse<const T extends Full, const S extends boolean>(full: T, stripCore?: S): Parse<T, S> {
-	const { type, pre, core } = /^(?<core>\d+\.\d+\.\d+)(?:[-_](?<type>[^-_.]+)[-_.](?<pre>\d*(?:\.\d+)*))?/.exec(full)!.groups!;
+	const { type, pre, core } = regex.exec(full)!.groups!;
 	const display = type ? `${stripCore && core == '1.0.0' ? '' : core + ' '}${capitalize(type)}${pre ? ` ${pre}` : ''}` : core;
 	return { full, core, pre, type, display } as Parse<T, S>;
 }
