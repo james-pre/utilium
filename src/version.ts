@@ -4,7 +4,9 @@ export type Sep = '_' | '-';
 
 export type Part = `${number}.${number}.${number}`;
 
-export type Full = Part | `${Part}${Sep}${string}${Sep | '.'}${Part | number}`;
+export type WithPre = `${Part}${Sep}${string}${Sep | '.'}${Part | number}`;
+
+export type Full = Part | WithPre;
 
 type Type<S extends string, Acc extends string = ''> = S extends `${infer First}${infer Rest}` ? (First extends Sep | '.' ? Acc : Type<Rest, `${Acc}${First}`>) : Acc;
 
