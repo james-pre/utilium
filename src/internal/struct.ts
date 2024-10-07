@@ -76,6 +76,9 @@ export function _polyfill_contextMetadata(target: object): void {
 	if (!Symbol?.metadata) {
 		return;
 	}
+	if (Symbol.metadata in target) {
+		return;
+	}
 	Object.defineProperty(target, Symbol.metadata, {
 		enumerable: true,
 		configurable: true,
