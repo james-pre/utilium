@@ -63,10 +63,33 @@ export function isValidMetadata<T extends Metadata = Metadata>(
 }
 
 /**
+ * Polyfill Symbol.metadata
+ * @see https://github.com/microsoft/TypeScript/issues/53461
+ */
+(Symbol as { metadata: symbol }).metadata ??= Symbol.for('Symbol.metadata');
+
+/**
+ * Polyfill context.metadata
+ * @see https://github.com/microsoft/TypeScript/issues/53461
+ */
+export function _polyfill_contextMetadata(target: object): void {
+	if (!Symbol?.metadata) {
+		return;
+	}
+	Object.defineProperty(target, Symbol.metadata, {
+		enumerable: true,
+		configurable: true,
+		writable: true,
+		value: Object.create(null),
+	});
+}
+
+/**
  * Gets a reference to Symbol.metadata, even on platforms that do not expose it globally (like Node)
  */
 export function symbol_metadata(arg: ClassLike): typeof Symbol.metadata {
 	const symbol_metadata = Symbol.metadata || Object.getOwnPropertySymbols(arg).find(s => s.description == 'Symbol.metadata');
+	_polyfill_contextMetadata(arg);
 	if (!symbol_metadata) {
 		throw new ReferenceError('Could not get a reference to Symbol.metadata');
 	}
