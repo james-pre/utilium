@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"lib": ["ESNext"],
 		"module": "NodeNext",
-		"target": "ES2023",
+		"target": "ES2022",
 		"moduleResolution": "NodeNext",
 		"outDir": "dist",
 		"typeRoots": ["node_modules/@types"],

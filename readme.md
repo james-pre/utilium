@@ -9,3 +9,4 @@ A bunch of utilies for Typescript. This includes:
 -   RNG functions
 -   `List`, a class that combines the best aspects of `Set` and arrays
 -   `JSONFileMap` and `FolderMap`
+-   Version utilities
