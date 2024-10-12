@@ -35,7 +35,12 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 /**
  * Entries of T
  */
-export type Entries<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]> & [unknown, unknown][];
+export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]> & [unknown, unknown][];
+
+/**
+ * Entries of T
+ */
+export type Entries<T extends object> = { [K in keyof T]: [K, T[K]] }[keyof T][];
 
 export function isJSON(str: string) {
 	try {
