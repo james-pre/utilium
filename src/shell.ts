@@ -20,7 +20,7 @@ export interface ShellOptions {
 
 export interface ShellContext extends Required<ShellOptions> {
 	/**
-	 *
+	 * The input currently being shown
 	 */
 	input: string;
 
