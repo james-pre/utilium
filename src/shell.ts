@@ -1,12 +1,24 @@
 /* A simple wrapper for xterm.js that makes implementing shells easier */
 import type { Terminal } from '@xterm/xterm';
 
-export interface ShellContext {
+export interface ShellOptions {
 	/**
-	 * The terminal associate with the context
+	 * The terminal associated with the context
 	 */
 	terminal: Terminal;
 
+	/**
+	 * The prompt to use, can be a getter.
+	 */
+	readonly prompt?: string;
+
+	/**
+	 * The handler for when a line is parsed
+	 */
+	onLine?(this: void, line: string): unknown;
+}
+
+export interface ShellContext extends Required<ShellOptions> {
 	/**
 	 *
 	 */
@@ -26,33 +38,6 @@ export interface ShellContext {
 	 * array of previous inputs
 	 */
 	inputs: string[];
-
-	/**
-	 * The prompt to use.
-	 * Can be a getter.
-	 */
-	readonly prompt: string;
-
-	/**
-	 * The handler for when a line is parsed
-	 */
-	onLine(this: void, line: string): unknown;
-}
-
-/**
- * Creates a new shell context from some options
- * @internal
- */
-export function createShellContext({ terminal, prompt = '', onLine = () => {} }: ShellOptions): ShellContext {
-	return {
-		terminal,
-		prompt,
-		onLine,
-		input: '',
-		index: -1,
-		currentInput: '',
-		inputs: [],
-	};
 }
 
 function handleData($: ShellContext, data: string) {
@@ -120,16 +105,19 @@ function handleData($: ShellContext, data: string) {
 	}
 }
 
-export interface ShellOptions {
-	terminal: Terminal;
-
-	readonly prompt?: string;
-
-	onLine?(this: void, line: string): unknown;
-}
-
-export function createShell(options: ShellOptions): ShellContext {
-	const context = createShellContext(options);
-	options.terminal.onData(data => handleData(context, data));
+/**
+ * Creates a new shell using the provided options
+ */
+export function createShell({ terminal, prompt = '', onLine = () => {} }: ShellOptions): ShellContext {
+	const context: ShellContext = {
+		terminal,
+		prompt,
+		onLine,
+		input: '',
+		index: -1,
+		currentInput: '',
+		inputs: [],
+	};
+	terminal.onData(data => handleData(context, data));
 	return context;
 }
