@@ -40,7 +40,7 @@ export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, 
 /**
  * Entries of T
  */
-export type Entries<T extends object> = { [K in keyof T]: [K, T[K]] }[keyof T][];
+export type Entries<T extends object> = ({ [K in keyof T]: [K, T[K]] }[keyof T] & unknown[])[];
 
 export function isJSON(str: string) {
 	try {
