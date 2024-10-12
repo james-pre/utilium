@@ -4,7 +4,7 @@
  * Upload a file
  * @todo use Promise.withResolvers
  */
-export function upload(type: string, multiple = false): Promise<File> {
+export function upload(type?: string, multiple = false): Promise<File> {
 	return new Promise<File>((resolve, reject) => {
 		const input = document.createElement('input');
 		input.type = 'file';
