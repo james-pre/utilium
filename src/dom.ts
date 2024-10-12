@@ -13,7 +13,7 @@ export function upload(type: string, multiple = false): Promise<File> {
 		if (multiple) input.multiple = true;
 
 		input.addEventListener('change', e => {
-			const file = input.files[0];
+			const file = input.files?.[0];
 			file ? resolve(file) : reject(new ReferenceError('No files uploaded'));
 		});
 
