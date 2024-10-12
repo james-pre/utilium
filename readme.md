@@ -10,3 +10,4 @@ A bunch of utilies for Typescript. This includes:
 -   `List`, a class that combines the best aspects of `Set` and arrays
 -   `JSONFileMap` and `FolderMap`
 -   Version utilities
+-   Xterm.js shell handling (arrows, home/end, prompting, etc.)
