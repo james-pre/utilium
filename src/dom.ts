@@ -30,3 +30,14 @@ export function download(data: BlobPart, name: string): void {
 	link.download = name;
 	link.click();
 }
+
+/**
+ * Create an instance of a `<template>`
+ */
+export function cloneTemplate(selector: string): DocumentFragment {
+	const template = document.querySelector<HTMLTemplateElement>(selector);
+	if (!template) {
+		throw new ReferenceError('Template does not exist: ' + selector);
+	}
+	return template.content.cloneNode(true) as DocumentFragment;
+}
