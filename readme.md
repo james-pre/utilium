@@ -1,6 +1,6 @@
 # Utilium
 
-A bunch of utilies for Typescript. This includes:
+A bunch of utilities for Typescript. This includes:
 
 -   Structs (using decorators)
 -   Compile-time math types
