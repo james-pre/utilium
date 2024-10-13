@@ -13,3 +13,7 @@ export function toDegrees(radians: number): number {
 export function toRadians(degrees: number): number {
 	return (degrees / 180) * Math.PI;
 }
+
+const __formatter = Intl.NumberFormat('en', { notation: 'compact' });
+
+export const formatCompact = __formatter.format.bind(__formatter);
