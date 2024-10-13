@@ -108,16 +108,18 @@ function handleData($: ShellContext, data: string) {
 /**
  * Creates a new shell using the provided options
  */
-export function createShell({ terminal, prompt = '', onLine = () => {} }: ShellOptions): ShellContext {
+export function createShell(options: ShellOptions): ShellContext {
 	const context: ShellContext = {
-		terminal,
-		prompt,
-		onLine,
+		terminal: options.terminal,
+		get prompt() {
+			return options.prompt ?? '';
+		},
+		onLine: options.onLine ?? (() => {}),
 		input: '',
 		index: -1,
 		currentInput: '',
 		inputs: [],
 	};
-	terminal.onData(data => handleData(context, data));
+	options.terminal.onData(data => handleData(context, data));
 	return context;
 }
