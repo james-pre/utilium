@@ -99,9 +99,9 @@ function handleData($: ShellContext, data: string) {
 				$.inputs.unshift($.input);
 			}
 			$.index = -1;
-			$.input = '';
 			$.terminal.write('\r\n');
-			$.onLine($.currentInput);
+			$.onLine($.input);
+			$.input = '';
 			$.terminal.write($.prompt);
 			break;
 		default:
