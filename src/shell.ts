@@ -13,6 +13,11 @@ export interface ShellOptions {
 	readonly prompt?: string;
 
 	/**
+	 * The length to use for the prompt. Useful if escape sequences are used in the prompt.
+	 */
+	readonly promptLength?: number;
+
+	/**
 	 * The handler for when a line is parsed
 	 */
 	onLine?(this: void, line: string): unknown;
@@ -48,7 +53,7 @@ function handleData($: ShellContext, data: string) {
 	function clear(): void {
 		$.terminal.write('\x1b[2K\r' + $.prompt);
 	}
-	const x = $.terminal.buffer.active.cursorX - $.prompt.length;
+	const x = $.terminal.buffer.active.cursorX - $.promptLength;
 	switch (data) {
 		case 'ArrowUp':
 		case '\x1b[A':
@@ -77,10 +82,10 @@ function handleData($: ShellContext, data: string) {
 			}
 			break;
 		case '\x1b[F':
-			$.terminal.write(`\x1b[${$.prompt.length + $.currentInput.length + 1}G`);
+			$.terminal.write(`\x1b[${$.promptLength + $.currentInput.length + 1}G`);
 			break;
 		case '\x1b[H':
-			$.terminal.write(`\x1b[${$.prompt.length + 1}G`);
+			$.terminal.write(`\x1b[${$.promptLength + 1}G`);
 			break;
 		case '\x7f':
 			if (x <= 0) {
@@ -113,6 +118,9 @@ export function createShell(options: ShellOptions): ShellContext {
 		terminal: options.terminal,
 		get prompt() {
 			return options.prompt ?? '';
+		},
+		get promptLength() {
+			return options.promptLength ?? this.prompt.length;
 		},
 		onLine: options.onLine ?? (() => {}),
 		input: '',
