@@ -77,12 +77,12 @@ function handleData($: ShellContext, data: string) {
 			}
 			break;
 		case '\x1b[C':
-			if (x < $.currentInput.length) {
+			if (x < $.input.length) {
 				$.terminal.write(data);
 			}
 			break;
 		case '\x1b[F':
-			$.terminal.write(`\x1b[${$.promptLength + $.currentInput.length + 1}G`);
+			$.terminal.write(`\x1b[${$.promptLength + $.input.length + 1}G`);
 			break;
 		case '\x1b[H':
 			$.terminal.write(`\x1b[${$.promptLength + 1}G`);
