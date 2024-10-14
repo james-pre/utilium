@@ -98,9 +98,9 @@ function handleData($: ShellContext, data: string) {
 			if ($.input != $.inputs[0]) {
 				$.inputs.unshift($.input);
 			}
-			$.index = -1;
 			$.terminal.write('\r\n');
 			$.onLine($.input);
+			$.index = -1;
 			$.input = '';
 			$.terminal.write($.prompt);
 			break;
