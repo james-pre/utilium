@@ -45,7 +45,7 @@ export interface ShellContext extends Required<ShellOptions> {
 	inputs: string[];
 }
 
-function handleData($: ShellContext, data: string) {
+async function handleData($: ShellContext, data: string) {
 	if ($.index == -1) {
 		$.currentInput = $.input;
 	}
@@ -99,7 +99,7 @@ function handleData($: ShellContext, data: string) {
 				$.inputs.unshift($.input);
 			}
 			$.terminal.write('\r\n');
-			$.onLine($.input);
+			await $.onLine($.input);
 			$.index = -1;
 			$.input = '';
 			$.terminal.write($.prompt);
