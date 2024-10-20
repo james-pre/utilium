@@ -13,6 +13,7 @@ export interface MemberInit {
 	length?: number;
 }
 
+/** @deprecated */
 export const init: typeof Symbol.struct_init = Symbol.struct_init;
 
 /**
@@ -35,11 +36,12 @@ export interface Metadata {
 	size: number;
 }
 
+/** @deprecated */
 export const metadata: typeof Symbol.struct_metadata = Symbol.struct_metadata;
 
 export interface _DecoratorMetadata<T extends Metadata = Metadata> extends DecoratorMetadata {
-	[metadata]?: T;
-	[init]?: MemberInit[];
+	[Symbol.struct_metadata]?: T;
+	[Symbol.struct_init]?: MemberInit[];
 }
 
 export interface DecoratorContext<T extends Metadata = Metadata> {
@@ -50,7 +52,7 @@ export type MemberContext = ClassMemberDecoratorContext & DecoratorContext;
 
 export interface Static<T extends Metadata = Metadata> {
 	[Symbol.metadata]: DecoratorMetadata & {
-		[metadata]: T;
+		[Symbol.struct_metadata]: T;
 	};
 	new (): Instance<T>;
 	prototype: Instance<T>;
@@ -63,9 +65,9 @@ export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
 export function isValidMetadata<T extends Metadata = Metadata>(
 	arg: unknown
 ): arg is DecoratorMetadata & {
-	[metadata]: T;
+	[Symbol.struct_metadata]: T;
 } {
-	return arg != null && typeof arg == 'object' && metadata in arg;
+	return arg != null && typeof arg == 'object' && Symbol.struct_metadata in arg;
 }
 
 /**

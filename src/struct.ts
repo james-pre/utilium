@@ -1,6 +1,6 @@
 import * as primitive from './internal/primitives.js';
 import type { DecoratorContext, InstanceLike, Member, MemberInit, Metadata, Options, Size, StaticLike } from './internal/struct.js';
-import { checkInstance, checkStruct, init, isStatic, metadata, symbol_metadata, type MemberContext } from './internal/struct.js';
+import { checkInstance, checkStruct, isStatic, symbol_metadata, type MemberContext } from './internal/struct.js';
 import { capitalize } from './string.js';
 import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
@@ -20,7 +20,7 @@ export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(ty
 
 	const struct = isStatic(type) ? type : type.constructor;
 
-	return struct[symbol_metadata(struct)][metadata].size as Size<T>;
+	return struct[symbol_metadata(struct)][Symbol.struct_metadata].size as Size<T>;
 }
 
 /**
@@ -36,10 +36,10 @@ export function align(value: number, alignment: number): number {
 export function struct(options: Partial<Options> = {}) {
 	return function _decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
 		context.metadata ??= {};
-		context.metadata[init] ||= [];
+		context.metadata[Symbol.struct_init] ||= [];
 		let size = 0;
 		const members = new Map<string, Member>();
-		for (const _ of context.metadata[init]) {
+		for (const _ of context.metadata[Symbol.struct_init]!) {
 			const { name, type, length } = _;
 			if (!primitive.isValid(type) && !isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
@@ -53,7 +53,7 @@ export function struct(options: Partial<Options> = {}) {
 			size = align(size, options.align || 1);
 		}
 
-		context.metadata[metadata] = { options, members, size } satisfies Metadata;
+		context.metadata[Symbol.struct_metadata] = { options, members, size } satisfies Metadata;
 		return target;
 	};
 }
@@ -74,8 +74,8 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
 		}
 
 		context.metadata ??= {};
-		context.metadata[init] ||= [];
-		context.metadata[init].push({ name, type, length } satisfies MemberInit);
+		context.metadata[Symbol.struct_init] ||= [];
+		context.metadata[Symbol.struct_init]!.push({ name, type, length } satisfies MemberInit);
 		return value;
 	};
 }
@@ -85,7 +85,7 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
  */
 export function serialize(instance: unknown): Uint8Array {
 	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][Symbol.struct_metadata];
 
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
@@ -129,7 +129,7 @@ export function serialize(instance: unknown): Uint8Array {
  */
 export function deserialize(instance: unknown, _buffer: ArrayBuffer | ArrayBufferView) {
 	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][metadata];
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][Symbol.struct_metadata];
 
 	const buffer = _buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
