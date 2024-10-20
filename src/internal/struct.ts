@@ -1,19 +1,11 @@
 import type { ClassLike } from '../types.js';
 import type * as primitive from './primitives.js';
 
-declare const globalThis: {
-	__utilium: {
-		readonly struct_init: unique symbol;
-		readonly struct: unique symbol;
-	};
-};
+// @ts-expect-error 2322
+Symbol.struct_init ||= Symbol('struct_init');
 
-globalThis.__utilium ||= {
-	// @ts-expect-error 2322
-	struct_init: Symbol('struct_init'),
-	// @ts-expect-error 2322
-	struct: Symbol('struct'),
-};
+// @ts-expect-error 2322
+Symbol.struct_metadata ||= Symbol('struct_metadata');
 
 export interface MemberInit {
 	name: string;
@@ -21,7 +13,7 @@ export interface MemberInit {
 	length?: number;
 }
 
-export const init: unique symbol = globalThis.__utilium.struct_init as unknown as typeof init;
+export const init: typeof Symbol.struct_init = Symbol.struct_init;
 
 /**
  * Options for struct initialization
@@ -43,7 +35,7 @@ export interface Metadata {
 	size: number;
 }
 
-export const metadata: unique symbol = globalThis.__utilium.struct as unknown as typeof metadata;
+export const metadata: typeof Symbol.struct_metadata = Symbol.struct_metadata;
 
 export interface _DecoratorMetadata<T extends Metadata = Metadata> extends DecoratorMetadata {
 	[metadata]?: T;
