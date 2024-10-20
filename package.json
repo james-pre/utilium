@@ -1,6 +1,6 @@
 {
 	"name": "utilium",
-	"version": "0.8.8",
+	"version": "1.0.0",
 	"description": "Typescript utilities",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
