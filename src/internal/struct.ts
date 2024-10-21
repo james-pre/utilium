@@ -1,6 +1,13 @@
 import type { ClassLike } from '../types.js';
 import type * as primitive from './primitives.js';
 
+declare global {
+	interface SymbolConstructor {
+		readonly struct_init: unique symbol;
+		readonly struct_metadata: unique symbol;
+	}
+}
+
 // @ts-expect-error 2322
 Symbol.struct_init ||= Symbol('struct_init');
 
