@@ -19,7 +19,7 @@ class Header {
 
 @struct()
 class AnotherHeader extends Header {
-	@t.uint64 public _plus = 0x12345678;
+	@t.uint64 public _plus: bigint = 0x12345678n;
 
 	@t.uint16 public some: Some = Some.thing;
 }
@@ -61,6 +61,7 @@ assert.equal(omg.header.magic_start, obj.header.magic_start);
 assert.equal(omg.header.segments, obj.header.segments);
 assert.equal(omg.header.magic_end, obj.header.magic_end);
 assert.equal(omg.header._plus, obj.header._plus);
+assert(typeof omg.header._plus == 'bigint');
 assert.equal(omg.comment, obj.comment.slice(0, 32));
 
 console.log(omg);
