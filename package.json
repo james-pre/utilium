@@ -2,6 +2,10 @@
 	"name": "utilium",
 	"version": "1.0.4",
 	"description": "Typescript utilities",
+	"funding": {
+		"type": "individual",
+		"url": "https://github.com/sponsors/james-pre"
+	},
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"type": "module",
