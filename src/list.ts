@@ -28,15 +28,19 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 		return this.join(',');
 	}
 
-	public set(index: number, value: T): void {
+	protected _set(index: number, value: T, _delete: boolean = false) {
 		if (Math.abs(index) > this.data.size) {
 			throw new ReferenceError('Can not set an element outside the bounds of the list');
 		}
 
 		const data = Array.from(this.data);
-		data.splice(index, 1, value);
+		data.splice(index, +_delete, value);
 		this.data = new Set<T>(data);
 		this.emit('update');
+	}
+
+	public set(index: number, value: T): void {
+		this._set(index, value, true);
 	}
 
 	public deleteAt(index: number): void {
@@ -45,6 +49,10 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 		}
 
 		this.delete(Array.from(this.data).at(index)!);
+	}
+
+	public insert(value: T, index: number = this.data.size) {
+		this._set(index, value, false);
 	}
 
 	// Array methods
@@ -115,12 +123,14 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 		return this.data.size;
 	}
 
-	public entries(): IterableIterator<[T, T]> {
-		return this.data.entries();
+	// Iteration
+
+	public entries(): IterableIterator<[number, T]> {
+		return this.toArray().entries();
 	}
 
-	public keys(): IterableIterator<T> {
-		return this.data.keys();
+	public keys(): IterableIterator<number> {
+		return this.toArray().keys();
 	}
 
 	public values(): IterableIterator<T> {
