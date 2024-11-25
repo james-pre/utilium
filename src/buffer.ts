@@ -3,12 +3,7 @@ import type { Buffer as NodeBuffer } from 'buffer';
 export class Buffer extends Uint8Array implements NodeBuffer {
 	protected view = new DataView(this.buffer, this.byteOffset, this.byteLength);
 
-	/* constructor(str: string, encoding?: BufferEncoding);
-	constructor(size: number);
-	constructor(array: Uint8Array | ArrayBufferLike | readonly any[]);
-	constructor(dataOrLength: readonly any[] | string | number | Uint8Array | ArrayBufferLike, encoding?: BufferEncoding) */
-
-	constructor(input: string | ArrayBufferLike | Uint8Array | number, encoding?: BufferEncoding) {
+	constructor(input: string | ArrayBufferLike | Uint8Array | number | readonly any[], encoding?: BufferEncoding) {
 		if (typeof input === 'number') {
 			super(input);
 		} else if (typeof input === 'string') {
@@ -17,6 +12,47 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 			super(input);
 		}
 		this.view = new DataView(this.buffer, this.byteOffset, this.byteLength);
+	}
+
+	fill(value: string | Uint8Array | number, offset: number = 0, end: number = this.length, encoding: BufferEncoding = 'utf8'): this {
+		const fillValue: Uint8Array = typeof value === 'string' ? encode(value, encoding) : typeof value === 'number' ? new Uint8Array([value & 0xff]) : value;
+
+		for (let i = offset; i < end; i++) {
+			this[i] = fillValue[i % fillValue.length];
+		}
+		return this;
+	}
+
+	indexOf(value: string | number | Uint8Array, byteOffset: number = 0, encoding: BufferEncoding = 'utf8'): number {
+		const searchValue: Uint8Array = typeof value === 'string' ? encode(value, encoding) : typeof value === 'number' ? new Uint8Array([value & 0xff]) : value;
+
+		for (let i = byteOffset; i <= this.length - searchValue.length; i++) {
+			let match = true;
+			for (let j = 0; j < searchValue.length; j++) {
+				if (this[i + j] !== searchValue[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) return i;
+		}
+		return -1;
+	}
+
+	lastIndexOf(value: string | number | Uint8Array, byteOffset: number = this.length - 1, encoding: BufferEncoding = 'utf8'): number {
+		const searchValue: Uint8Array = typeof value === 'string' ? encode(value, encoding) : typeof value === 'number' ? new Uint8Array([value & 0xff]) : value;
+
+		for (let i = Math.min(byteOffset, this.length - searchValue.length); i >= 0; i--) {
+			let match = true;
+			for (let j = 0; j < searchValue.length; j++) {
+				if (this[i + j] !== searchValue[j]) {
+					match = false;
+					break;
+				}
+			}
+			if (match) return i;
+		}
+		return -1;
 	}
 
 	write(string: string, offset?: number | BufferEncoding, length?: number | BufferEncoding, encoding?: BufferEncoding): number {
@@ -40,11 +76,19 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 			actualEncoding = encoding;
 		}
 
-		const encoder = new TextEncoder();
-		const bytes = encoder.encode(string);
-		this.set(bytes, actualOffset);
+		if (actualOffset < 0 || actualOffset >= this.length) {
+			throw new RangeError('Offset is out of bounds');
+		}
 
-		return bytes.length;
+		const encodedString = encode(string, actualEncoding);
+		const bytesToWrite = Math.min(actualLength, encodedString.length);
+
+		for (let i = 0; i < bytesToWrite; i++) {
+			if (actualOffset + i >= this.length) break;
+			this[actualOffset + i] = encodedString[i];
+		}
+
+		return bytesToWrite;
 	}
 
 	toJSON(): { type: 'Buffer'; data: number[] } {
@@ -400,21 +444,42 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 		return offset + 8;
 	}
 
-	/* from(arrayBuffer: WithImplicitCoercion<ArrayBufferLike>, byteOffset?: number, length?: number): Buffer;
-	from(data: WithImplicitCoercion<Uint8Array | readonly number[] | string>): Buffer;
-	from(str: WithImplicitCoercion<string> | { [Symbol.toPrimitive](hint: 'string'): string }, encoding?: BufferEncoding): Buffer; */
-	from(
-		value: WithImplicitCoercion<ArrayBufferLike | Uint8Array | string | readonly number[]> | { [Symbol.toPrimitive](hint: 'string'): string },
-		encoding?: number | BufferEncoding,
+	static from(
+		value:
+			| WithImplicitCoercion<ArrayBufferLike | Uint8Array | string | readonly number[]>
+			| { [Symbol.toPrimitive](hint: 'string'): string }
+			| ArrayLike<number>
+			| Iterable<number>,
+		encodingOrOffset?: number | BufferEncoding | ((v: any, k: number) => number),
 		length?: number
 	): Buffer {
-		if (typeof value === 'string') return new Buffer(encode(value, encoding || 'utf8'));
-		if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) return new Buffer(new Uint8Array(value));
-		if (Array.isArray(value)) return new Buffer(new Uint8Array(value));
-		return new Buffer(value);
+		if (typeof value === 'string' || (typeof value === 'object' && Symbol.toPrimitive in value)) {
+			const str = typeof value === 'string' ? value : value[Symbol.toPrimitive]('string');
+			return new Buffer(encode(str, typeof encodingOrOffset === 'string' ? encodingOrOffset : 'utf8'));
+		}
+
+		if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) {
+			const byteOffset = typeof encodingOrOffset === 'number' ? encodingOrOffset : 0;
+			const byteLength = typeof length === 'number' ? length : value.byteLength - byteOffset;
+			return new Buffer(new Uint8Array(value, byteOffset, byteLength));
+		}
+
+		if (Array.isArray(value) || value instanceof Uint8Array) {
+			return new Buffer(new Uint8Array(value));
+		}
+
+		if (typeof value === 'object' && typeof encodingOrOffset === 'function') {
+			const mappedArray = Array.from(value as ArrayLike<any>, encodingOrOffset, length);
+			return new Buffer(new Uint8Array(mappedArray));
+		}
+
+		if (typeof value === 'object' && Symbol.iterator in value) {
+			return new Buffer(new Uint8Array(Array.from(value as Iterable<number>)));
+		}
+
+		throw new TypeError('The "value" argument must be one of type string, Buffer, ArrayBuffer, or Array-like object.');
 	}
 
-	// alloc(size: number, fill?: string | Uint8Array | number, encoding?: BufferEncoding): Buffer
 	static alloc(size: number, fill?: string | number | Uint8Array, encoding: BufferEncoding = 'utf8'): Buffer {
 		const buffer = new Buffer(size);
 		if (fill === undefined) return buffer;
@@ -430,13 +495,15 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 		return buffer;
 	}
 
-	// allocUnsafe(size: number): Buffer
 	static allocUnsafe(size: number): Buffer {
 		return new Buffer(size);
 	}
 
-	// concat(list: readonly Uint8Array[], totalLength?: number): Buffer
-	static concat(list: Buffer[], totalLength?: number): Buffer {
+	static allocUnsafeSlow(size: number): Buffer {
+		return new Buffer(size);
+	}
+
+	static concat(list: readonly Uint8Array[], totalLength?: number): Buffer {
 		if (list.length === 0) return Buffer.alloc(0);
 
 		totalLength ??= list.reduce((acc, buf) => acc + buf.length, 0);
@@ -454,7 +521,6 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 		return obj instanceof Buffer;
 	}
 
-	// 	byteLength(string: string | Buffer | NodeJS.ArrayBufferView | ArrayBufferLike, encoding?: BufferEncoding): number {}
 	static byteLength(string: string | ArrayBufferLike | NodeJS.ArrayBufferView, encoding: BufferEncoding = 'utf8'): number {
 		if (typeof string === 'string') {
 			return encode(string, encoding).length;
@@ -485,13 +551,16 @@ export class Buffer extends Uint8Array implements NodeBuffer {
 		return 0;
 	}
 
-	static of(...items: number[]): Buffer {}
+	static of(...items: number[]): Buffer {
+		return new Buffer(items);
+	}
 
-	static copyBytesFrom(view: NodeJS.TypedArray, offset?: number, length?: number): Buffer {}
+	static copyBytesFrom(view: NodeJS.TypedArray, offset: number = 0, length?: number): Buffer {
+		const actualLength = length !== undefined ? length : view.length - offset;
+		return new Buffer(view.buffer.slice(view.byteOffset + offset, actualLength));
+	}
 
-	static allocUnsafeSlow(size: number): Buffer {}
-
-	static poolSize: number;
+	static poolSize: number = 8192;
 }
 
 Buffer satisfies typeof NodeBuffer;
@@ -565,7 +634,7 @@ function encode(input: string, encoding: BufferEncoding): Uint8Array {
 		case 'hex': {
 			const buffer = new Uint8Array(input.length / 2);
 			for (let i = 0; i < buffer.length; i++) {
-				buffer[i] = parseInt(input.substr(i * 2, 2), 16);
+				buffer[i] = parseInt(input.substring(i * 2, 2), 16);
 			}
 			return buffer;
 		}
