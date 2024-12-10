@@ -133,7 +133,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 
 	const buffer = _buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
-	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
 	for (const [name, { type, offset, length }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
