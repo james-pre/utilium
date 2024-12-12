@@ -1,6 +1,12 @@
 import { EventEmitter } from 'eventemitter3';
 
-export class List<T> extends EventEmitter<'update'> implements RelativeIndexable<T> {
+export class List<T>
+	extends EventEmitter<{
+		update: [];
+		add: [T];
+	}>
+	implements RelativeIndexable<T>
+{
 	public readonly [Symbol.toStringTag] = 'List';
 
 	public constructor(values?: readonly T[] | Iterable<T> | null) {
@@ -101,6 +107,7 @@ export class List<T> extends EventEmitter<'update'> implements RelativeIndexable
 	public add(value: T): this {
 		this.data.add(value);
 		this.emit('update');
+		this.emit('add', value);
 		return this;
 	}
 
