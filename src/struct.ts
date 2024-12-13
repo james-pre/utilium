@@ -45,11 +45,12 @@ export function struct(options: Partial<Options> = {}) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
 			members.set(name, {
-				offset: size,
+				offset: options.isUnion ? 0 : size,
 				type: primitive.isValid(type) ? primitive.normalize(type) : type,
 				length,
 			});
-			size += sizeof(type) * (length || 1);
+			const memberSize = sizeof(type) * (length || 1);
+			size = options.isUnion ? Math.max(size, memberSize) : size + memberSize;
 			size = align(size, options.align || 1);
 		}
 
@@ -90,6 +91,7 @@ export function serialize(instance: unknown): Uint8Array {
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
 
+	// for unions we should write members in ascending last modified order, but we don't have that info.
 	for (const [name, { type, length, offset }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
 			const iOff = offset + sizeof(type) * i;

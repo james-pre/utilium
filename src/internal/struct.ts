@@ -29,6 +29,7 @@ export const init: typeof Symbol.struct_init = Symbol.struct_init;
 export interface Options {
 	align: number;
 	bigEndian: boolean;
+	isUnion: boolean;
 }
 
 export interface Member {
