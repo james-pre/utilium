@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface CreateLoggerOptions {
 	output?: (...args: any[]) => void;
+	stringify?: (value: unknown) => string;
+	className?: boolean;
 	separator?: string;
 	returnValue?: boolean;
-	stringify?: (value: unknown) => string;
 }
 
 function defaultStringify(value: unknown): string {
@@ -19,7 +20,7 @@ type LoggableDecoratorContext = Exclude<DecoratorContext, ClassFieldDecoratorCon
  * Create a function that can be used to decorate classes and non-field members.
  */
 export function createLogDecorator(options: CreateLoggerOptions) {
-	const { output = console.log, separator = '#', returnValue = false, stringify = defaultStringify } = options;
+	const { output = console.log, separator = '#', returnValue = false, stringify = defaultStringify, className = true } = options;
 
 	return function log<T extends (...args: any[]) => any>(value: T, context: LoggableDecoratorContext): T {
 		if (context.kind == 'class') {
@@ -30,7 +31,7 @@ export function createLogDecorator(options: CreateLoggerOptions) {
 		}
 
 		return function (this: any, ...args: any[]) {
-			const prefix = this.constructor.name + separator + context.name.toString();
+			const prefix = (className ? this.constructor.name + separator : '') + context.name.toString();
 
 			output(`${prefix}(${args.map(stringify).join(', ')})`);
 
