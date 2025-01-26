@@ -21,9 +21,9 @@ export interface ResourceCacheOptions {
 	regionGapThreshold?: number;
 }
 
-type CacheRange = { start: number; end: number };
+export type CacheRange = { start: number; end: number };
 
-interface CacheRegion {
+export interface CacheRegion {
 	/** The region's offset from the start of the resource */
 	offset: number;
 
