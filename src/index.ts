@@ -1,3 +1,6 @@
+// This file should not be added to
+// For better tree shaking, import from whichever file is actually needed
+
 export * from './list.js';
 export * from './misc.js';
 export * from './numbers.js';

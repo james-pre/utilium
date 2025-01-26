@@ -232,3 +232,13 @@ export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
  * Makes properties with keys assignable to K in T optional
  */
 export type WithOptional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
+
+/**
+ * Nothing in T
+ */
+export type Never<T> = { [K in keyof T]?: never };
+
+/**
+ * All of the properties in T or none of them
+ */
+export type AllOrNone<T> = T | Never<T>;
