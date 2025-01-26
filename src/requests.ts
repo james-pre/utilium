@@ -4,7 +4,7 @@ import { extendBuffer } from './buffer.js';
 
 /* eslint-disable @typescript-eslint/only-throw-error */
 
-export interface ResourceCacheOptions {
+export interface CacheOptions {
 	/**
 	 * If true, use multiple buffers to cache a file.
 	 * This is useful when working with small parts of large files,
@@ -19,6 +19,12 @@ export interface ResourceCacheOptions {
 	 * @default 0xfff // 4 KiB
 	 */
 	regionGapThreshold?: number;
+
+	/**
+	 * Whether to only update the cache when changing or deleting resources
+	 * @default false
+	 */
+	cacheOnly?: boolean;
 }
 
 export type CacheRange = { start: number; end: number };
@@ -34,8 +40,11 @@ export interface CacheRegion {
 	data: Uint8Array;
 }
 
-/** The cache for a specific resource */
-class ResourceCache {
+/**
+ * The cache for a specific resource
+ * @internal
+ */
+export class ResourceCache {
 	/** Regions used to reduce unneeded allocations. Think of sparse arrays. */
 	public readonly regions: CacheRegion[] = [];
 
@@ -44,12 +53,12 @@ class ResourceCache {
 		public readonly url: string,
 		/** The full size of the resource */
 		public readonly size: number,
-		protected readonly options: ResourceCacheOptions
+		protected readonly options: CacheOptions
 	) {
 		options.sparse ??= true;
 		if (!options.sparse) this.regions.push({ offset: 0, data: new Uint8Array(size), ranges: [] });
 
-		requestsCache.set(url, this);
+		resourcesCache.set(url, this);
 	}
 
 	/** Combines adjacent regions and combines adjacent ranges within a region */
@@ -133,20 +142,22 @@ class ResourceCache {
 	}
 
 	/** Add new data to the cache at given specified offset */
-	public add(data: Uint8Array, start: number, end: number = start + data.byteLength): this {
-		const region = this.regionAt(start);
+	public add(data: Uint8Array, offset: number): this {
+		const end = offset + data.byteLength;
+		const region = this.regionAt(offset);
 
 		if (region) {
 			region.data = extendBuffer(region.data, end);
-			region.ranges.push({ start, end });
+			region.data.set(data, offset);
+			region.ranges.push({ start: offset, end });
 			region.ranges.sort((a, b) => a.start - b.start);
 
 			return this;
 		}
 
 		// Find the correct index to insert the new region
-		const newRegion: CacheRegion = { data, offset: start, ranges: [{ start, end }] };
-		const insertIndex = this.regions.findIndex(region => region.offset > start);
+		const newRegion: CacheRegion = { data, offset: offset, ranges: [{ start: offset, end }] };
+		const insertIndex = this.regions.findIndex(region => region.offset > offset);
 
 		// Insert at the right index to keep regions sorted
 		if (insertIndex == -1) {
@@ -159,29 +170,47 @@ class ResourceCache {
 	}
 }
 
-const requestsCache = new Map<string, ResourceCache | null>();
+/**
+ * @internal
+ */
+export const resourcesCache = new Map<string, ResourceCache | null>();
 
-export type RequestError = { tag: 'status'; response: Response } | { tag: 'buffer'; response: Response; message: string } | { tag: 'fetch' | 'size'; message: string } | Error;
+export type Issue = { tag: 'status'; response: Response } | { tag: 'buffer'; response: Response; message: string } | { tag: 'fetch' | 'size'; message: string } | Error;
+
+interface Fetched<TBodyOptional extends boolean> {
+	response: Response;
+	data: false extends TBodyOptional ? Uint8Array : Uint8Array | undefined;
+}
 
 /**
  * Wraps `fetch`
  * @throws RequestError
  */
-async function _fetchBuffer(input: RequestInfo, init: RequestInit = {}): Promise<{ response: Response; data: Uint8Array }> {
+async function _fetch<const TBodyOptional extends boolean>(
+	input: RequestInfo,
+	init: RequestInit = {},
+	bodyOptional: TBodyOptional = false as TBodyOptional
+): Promise<Fetched<TBodyOptional>> {
 	const response = await fetch(input, init).catch((error: Error) => {
-		throw { tag: 'fetch', message: error.message } satisfies RequestError;
+		throw { tag: 'fetch', message: error.message } satisfies Issue;
 	});
 
-	if (!response.ok) throw { tag: 'status', response } satisfies RequestError;
+	if (!response.ok) throw { tag: 'status', response } satisfies Issue;
 
-	const arrayBuffer = await response.arrayBuffer().catch((error: Error) => {
-		throw { tag: 'buffer', response, message: error.message } satisfies RequestError;
+	const raw = await response.arrayBuffer().catch((error: Error) => {
+		if (bodyOptional) return;
+		throw { tag: 'buffer', response, message: error.message } satisfies Issue;
 	});
 
-	return { response, data: new Uint8Array(arrayBuffer) };
+	return { response, data: raw ? new Uint8Array(raw) : undefined } as Fetched<TBodyOptional>;
 }
 
-export interface RequestOptions extends ResourceCacheOptions {
+export interface Options extends CacheOptions {
+	/** Optionally provide a function for logging warnings */
+	warn?(message: string): unknown;
+}
+
+export interface GetOptions extends Options {
 	/**
 	 * When using range requests,
 	 * a HEAD request must normally be used to determine the full size of the resource.
@@ -194,21 +223,18 @@ export interface RequestOptions extends ResourceCacheOptions {
 
 	/** The end of the range */
 	end?: number;
-
-	/** Optionally provide a function for logging warnings */
-	warn?(message: string): unknown;
 }
 
 /**
  * Make a GET request without worrying about ranges
  * @throws RequestError
  */
-export async function GET(url: string, options: RequestOptions, init: RequestInit = {}): Promise<Uint8Array> {
+export async function get(url: string, options: GetOptions, init: RequestInit = {}): Promise<Uint8Array> {
 	const req = new Request(url, init);
 
 	// Request no using ranges
 	if (typeof options.start != 'number' || typeof options.end != 'number') {
-		const { data } = await _fetchBuffer(url, init);
+		const { data } = await _fetch(url, init);
 		new ResourceCache(url, data.byteLength, options).add(data, 0);
 		return data;
 	}
@@ -220,17 +246,17 @@ export async function GET(url: string, options: RequestOptions, init: RequestIni
 
 		const { headers } = await fetch(req, { method: 'HEAD' });
 		const size = parseInt(headers.get('Content-Length') ?? '');
-		if (typeof size != 'number') throw { tag: 'size', message: 'Response is missing content-length header and no size was provided' } satisfies RequestError;
+		if (typeof size != 'number') throw { tag: 'size', message: 'Response is missing content-length header and no size was provided' } satisfies Issue;
 		options.size = size;
 	}
 
 	const { size, start, end } = options;
-	const cache = requestsCache.get(url) ?? new ResourceCache(url, size, options);
+	const cache = resourcesCache.get(url) ?? new ResourceCache(url, size, options);
 
 	req.headers.set('If-Range', new Date().toUTCString());
 
 	for (const { start: from, end: to } of cache.missing(start, end)) {
-		const { data, response } = await _fetchBuffer(req, { headers: { Range: `bytes=${from}-${to}` } });
+		const { data, response } = await _fetch(req, { headers: { Range: `bytes=${from}-${to}` } });
 
 		if (response.status == 206) {
 			cache.add(data, from);
@@ -254,13 +280,17 @@ export async function GET(url: string, options: RequestOptions, init: RequestIni
  * Synchronously gets a cached resource
  * Assumes you pass valid start and end when using ranges
  */
-export function getCached(url: string, options: RequestOptions): { data: Uint8Array; missing: CacheRange[] } {
-	const cache = requestsCache.get(url);
+export function getCached(url: string, options: GetOptions): { data?: Uint8Array; missing: CacheRange[] } {
+	const cache = resourcesCache.get(url);
 
 	/**
 	 * @todo Make sure we have a size?
 	 */
-	if (!cache) return { data: new Uint8Array(0), missing: [{ start: 0, end: options.size ?? 0 }] };
+	if (!cache) {
+		if (options.size) return { data: new Uint8Array(0), missing: [{ start: 0, end: options.size ?? 0 }] };
+		options.warn?.(url + ': Size not provided and cache is empty, can not determine missing range');
+		return { data: undefined, missing: [] };
+	}
 
 	const { start = 0, end = cache.size } = options;
 
@@ -284,4 +314,39 @@ export function getCached(url: string, options: RequestOptions): { data: Uint8Ar
 	}
 
 	return { data, missing: cache.missing(start, end) };
+}
+
+interface SetOptions extends Options {
+	/** The offset we are updating at */
+	offset?: number;
+
+	/** If a cache for the resource doesn't exist, this will be used as the full size */
+	size?: number;
+}
+
+/**
+ * Make a POST request to set (or create) data on the server and update the cache.
+ * @throws RequestError
+ */
+export async function set(url: string, data: Uint8Array, options: SetOptions, init: RequestInit = {}): Promise<void> {
+	if (!resourcesCache.has(url)) {
+		new ResourceCache(url, options.size ?? data.byteLength, options);
+	}
+
+	const cache = resourcesCache.get(url)!;
+
+	const { offset = 0 } = options;
+
+	if (!options.cacheOnly) await _fetch(new Request(url, init), { method: 'POST' }, true);
+
+	cache.add(data, offset).collect();
+}
+
+/**
+ * Make a DELETE request to remove the resource from the server and clear it from the cache.
+ * @throws RequestError
+ */
+export async function remove(url: string, options: Options = {}, init: RequestInit = {}): Promise<void> {
+	if (!options.cacheOnly) await _fetch(new Request(url, init), { method: 'DELETE' }, true);
+	resourcesCache.delete(url);
 }
