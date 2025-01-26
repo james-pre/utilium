@@ -1,9 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface CreateLoggerOptions {
+	/**
+	 * The function used to output
+	 * @default console.log
+	 */
 	output?: (...args: any[]) => void;
 	stringify?: (value: unknown) => string;
+	/**
+	 * Whether to output the class name when logging methods
+	 * @default true
+	 */
 	className?: boolean;
+	/**
+	 * The separator used to separate the class name and method.
+	 * Ignored if `className` is `false`
+	 * @default '#'
+	 */
 	separator?: string;
+	/**
+	 * Whether to log the return value
+	 * @default false
+	 */
 	returnValue?: boolean;
 }
 
