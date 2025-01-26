@@ -27,6 +27,11 @@ export interface CacheOptions {
 	cacheOnly?: boolean;
 }
 
+/**
+ * @deprecated Use `CacheOptions`
+ */
+export type ResourceCacheOptions = CacheOptions;
+
 export type CacheRange = { start: number; end: number };
 
 export interface CacheRegion {
@@ -177,6 +182,11 @@ export const resourcesCache = new Map<string, ResourceCache | null>();
 
 export type Issue = { tag: 'status'; response: Response } | { tag: 'buffer'; response: Response; message: string } | { tag: 'fetch' | 'size'; message: string } | Error;
 
+/**
+ * @deprecated Use `Issue`
+ */
+export type RequestError = Issue;
+
 interface Fetched<TBodyOptional extends boolean> {
 	response: Response;
 	data: false extends TBodyOptional ? Uint8Array : Uint8Array | undefined;
@@ -209,6 +219,11 @@ export interface Options extends CacheOptions {
 	/** Optionally provide a function for logging warnings */
 	warn?(message: string): unknown;
 }
+
+/**
+ * @deprecated Use `Options`
+ */
+export type RequestOptions = Options;
 
 export interface GetOptions extends Options {
 	/**
@@ -275,6 +290,11 @@ export async function get(url: string, options: GetOptions, init: RequestInit = 
 	const region = cache.regionAt(start)!;
 	return region.data.subarray(start - region.offset, end - region.offset);
 }
+
+/**
+ * @deprecated Use `get`
+ */
+export const GET = get;
 
 /**
  * Synchronously gets a cached resource
