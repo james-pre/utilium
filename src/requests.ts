@@ -37,7 +37,7 @@ interface CacheRegion {
 /** The cache for a specific resource */
 class ResourceCache {
 	/** Regions used to reduce unneeded allocations. Think of sparse arrays. */
-	protected readonly regions: CacheRegion[] = [];
+	public readonly regions: CacheRegion[] = [];
 
 	public constructor(
 		/** The resource URL */
@@ -248,4 +248,40 @@ export async function GET(url: string, options: RequestOptions, init: RequestIni
 
 	const region = cache.regionAt(start)!;
 	return region.data.subarray(start - region.offset, end - region.offset);
+}
+
+/**
+ * Synchronously gets a cached resource
+ * Assumes you pass valid start and end when using ranges
+ */
+export function getCached(url: string, options: RequestOptions): { data: Uint8Array; missing: CacheRange[] } {
+	const cache = requestsCache.get(url);
+
+	/**
+	 * @todo Make sure we have a size?
+	 */
+	if (!cache) return { data: new Uint8Array(0), missing: [{ start: 0, end: options.size ?? 0 }] };
+
+	const { start = 0, end = cache.size } = options;
+
+	const data = new Uint8Array(end - start);
+
+	for (const region of cache.regions) {
+		if (region.offset + region.data.byteLength <= start) continue;
+		if (region.offset >= end) break;
+
+		for (const range of region.ranges) {
+			if (range.end <= start) continue;
+			if (range.start >= end) break;
+
+			const overlapStart = Math.max(range.start, start);
+			const overlapEnd = Math.min(range.end, end);
+
+			if (overlapStart >= overlapEnd) continue;
+
+			data.set(region.data.subarray(overlapStart - region.offset, overlapEnd - region.offset), overlapStart - start);
+		}
+	}
+
+	return { data, missing: cache.missing(start, end) };
 }
