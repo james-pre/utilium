@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-base-to-string */
 export interface CreateLoggerOptions {
 	/**
 	 * The function used to output
@@ -25,10 +25,33 @@ export interface CreateLoggerOptions {
 }
 
 function defaultStringify(value: unknown): string {
-	if (value === null) return 'null';
-	if (value === undefined) return 'undefined';
-	// eslint-disable-next-line @typescript-eslint/no-base-to-string
-	return value.toString();
+	switch (typeof value) {
+		case 'undefined':
+			return 'undefined';
+		case 'string':
+		case 'number':
+		case 'boolean':
+			return JSON.stringify(value);
+		case 'bigint':
+		case 'symbol':
+			return value.toString();
+		case 'function':
+			return value.name + '()';
+		case 'object':
+			if (value === null) return 'null';
+			if (ArrayBuffer.isView(value)) {
+				const length = 'length' in value ? (value.length as number) : value.byteLength / (value.constructor as any).BYTES_PER_ELEMENT;
+				return `${value.constructor.name.replaceAll('Array', '').toLowerCase()}[${length}]`;
+			}
+			if (Array.isArray(value)) return `unknown[${value.length}]`;
+			try {
+				const json = JSON.stringify(value);
+
+				return json.length < 100 ? json : value.toString();
+			} catch {
+				return value.toString();
+			}
+	}
 }
 
 type LoggableDecoratorContext = Exclude<DecoratorContext, ClassFieldDecoratorContext>;
