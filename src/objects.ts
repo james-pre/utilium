@@ -66,7 +66,9 @@ export function resolveConstructors(object: object): string[] {
  */
 export interface ConstMap<T extends Partial<Record<keyof any, any>>, K extends keyof any = keyof T, V = T[keyof T]> extends Map<K, V> {
 	get<_K extends keyof T>(key: _K): T[_K];
+	get(key: K): V;
 	set<_K extends keyof T>(key: _K, value: T[_K]): this;
+	set(key: K, value: V): this;
 }
 
 export function map<const T extends Partial<Record<any, any>>>(items: T): Map<keyof T, T[keyof T]> {
