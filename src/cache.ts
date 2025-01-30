@@ -41,17 +41,17 @@ export interface Region {
  * The cache for a specific resource
  * @internal
  */
-export class Resource {
+export class Resource<ID> {
 	/** Regions used to reduce unneeded allocations. Think of sparse arrays. */
 	public readonly regions: Region[] = [];
 
 	public constructor(
 		/** The resource ID */
-		public readonly id: string,
+		public readonly id: ID,
 		/** The full size of the resource */
 		public readonly size: number,
 		protected readonly options: Options,
-		resources?: Map<string, Resource | undefined>
+		resources?: Map<ID, Resource<ID> | undefined>
 	) {
 		options.sparse ??= true;
 		if (!options.sparse) this.regions.push({ offset: 0, data: new Uint8Array(size), ranges: [] });

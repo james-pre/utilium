@@ -9,7 +9,7 @@ export type ResourceCacheOptions = cache.Options;
 /** @deprecated Use `cache.Resource` */
 export const ResourceCache = cache.Resource;
 /** @deprecated Use `cache.Resource` */
-export type ResourceCache = cache.Resource;
+export type ResourceCache = cache.Resource<string>;
 /** @deprecated Use `cache.Range` */
 export type CacheRange = cache.Range;
 /** @deprecated Use `cache.Options` */
@@ -20,7 +20,7 @@ export type CacheOptions = cache.Options;
 /**
  * @internal
  */
-export const resourcesCache = new Map<string, cache.Resource | undefined>();
+export const resourcesCache = new Map<string, cache.Resource<string> | undefined>();
 
 export type Issue = { tag: 'status'; response: Response } | { tag: 'buffer'; response: Response; message: string } | { tag: 'fetch' | 'size'; message: string } | Error;
 
