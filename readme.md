@@ -9,6 +9,7 @@ A bunch of utilities for Typescript. This includes:
 - Extending buffers easier with `extendBuffer`
 - Convenience types and functions for strings and objects
 - RNG functions
+- Ranged cache
 - `List`, a class that combines the best aspects of `Set` and arrays
 - `JSONFileMap` and `FolderMap`
 - Version utilities
