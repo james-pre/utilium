@@ -65,10 +65,11 @@ export function resolveConstructors(object: object): string[] {
  * Allows you to convert an object with specific member types into a Map that will give you the correct type for the correct member
  */
 export interface ConstMap<T extends Partial<Record<keyof any, any>>, K extends keyof any = keyof T, V = T[keyof T]> extends Map<K, V> {
-	get<_K extends keyof T>(key: _K): T[_K];
+	get<TK extends keyof T>(key: TK): T[TK];
 	get(key: K): V;
-	set<_K extends keyof T>(key: _K, value: T[_K]): this;
+	set<TK extends keyof T>(key: TK, value: T[TK]): this;
 	set(key: K, value: V): this;
+	has(key: keyof T | K): boolean;
 }
 
 export function map<const T extends Partial<Record<any, any>>>(items: T): Map<keyof T, T[keyof T]> {
