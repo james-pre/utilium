@@ -112,7 +112,6 @@ export class Resource<ID> {
 
 			for (const range of region.ranges) {
 				if (range.end <= start) continue;
-
 				if (range.start >= end) break;
 
 				if (range.start > start) {
@@ -132,6 +131,41 @@ export class Resource<ID> {
 		if (start < end) missingRanges.push({ start, end });
 
 		return missingRanges;
+	}
+
+	/**
+	 * Get the cached sub-ranges of an initial range.
+	 * This is conceptually the inverse of `missing`.
+	 */
+	public cached(start: number, end: number): Range[] {
+		const cachedRanges: Range[] = [];
+
+		for (const region of this.regions) {
+			if (region.offset >= end) break;
+
+			for (const range of region.ranges) {
+				if (range.end <= start) continue;
+				if (range.start >= end) break;
+
+				cachedRanges.push({
+					start: Math.max(start, range.start),
+					end: Math.min(end, range.end),
+				});
+			}
+		}
+
+		cachedRanges.sort((a, b) => a.start - b.start);
+		const merged: Range[] = [];
+		for (const curr of cachedRanges) {
+			const last = merged.at(-1);
+			if (last && curr.start <= last.end) {
+				last.end = Math.max(last.end, curr.end);
+			} else {
+				merged.push(curr);
+			}
+		}
+
+		return merged;
 	}
 
 	/** Get the region who's ranges include an offset */
