@@ -49,7 +49,7 @@ export class Resource<ID> {
 		/** The resource ID */
 		public readonly id: ID,
 		/** The full size of the resource */
-		public readonly size: number,
+		public size: number,
 		protected readonly options: Options,
 		resources?: Map<ID, Resource<ID> | undefined>
 	) {
