@@ -59,6 +59,13 @@ export class Resource<ID> {
 		resources?.set(id, this);
 	}
 
+	/**
+	 * Ensure the full size of the resource is *at least* `newSize`
+	 */
+	public grow(newSize: number) {
+		this.size = Math.max(this.size, newSize);
+	}
+
 	/** Combines adjacent regions and combines adjacent ranges within a region */
 	public collect(): void {
 		if (!this.options.sparse) return;
