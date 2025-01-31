@@ -45,25 +45,54 @@ export class Resource<ID> {
 	/** Regions used to reduce unneeded allocations. Think of sparse arrays. */
 	public readonly regions: Region[] = [];
 
+	/** The full size of the resource */
+	public get size() {
+		return this._size;
+	}
+
+	public set size(value: number) {
+		if (value >= this._size) {
+			this._size = value;
+			return;
+		}
+
+		this._size = value;
+
+		for (let i = this.regions.length - 1; i >= 0; i--) {
+			const region = this.regions[i];
+
+			if (region.offset >= value) {
+				this.regions.splice(i, 1);
+				continue;
+			}
+
+			const maxLength = value - region.offset;
+			if (region.data.byteLength > maxLength) {
+				region.data = region.data.subarray(0, maxLength);
+			}
+
+			region.ranges = region.ranges
+				.filter(range => range.start < value)
+				.map(range => {
+					if (range.end > value) {
+						return { start: range.start, end: value };
+					}
+					return range;
+				});
+		}
+	}
+
 	public constructor(
 		/** The resource ID */
 		public readonly id: ID,
-		/** The full size of the resource */
-		public size: number,
+		protected _size: number,
 		protected readonly options: Options,
 		resources?: Map<ID, Resource<ID> | undefined>
 	) {
 		options.sparse ??= true;
-		if (!options.sparse) this.regions.push({ offset: 0, data: new Uint8Array(size), ranges: [] });
+		if (!options.sparse) this.regions.push({ offset: 0, data: new Uint8Array(_size), ranges: [] });
 
 		resources?.set(id, this);
-	}
-
-	/**
-	 * Ensure the full size of the resource is *at least* `newSize`
-	 */
-	public grow(newSize: number) {
-		this.size = Math.max(this.size, newSize);
 	}
 
 	/** Combines adjacent regions and combines adjacent ranges within a region */
@@ -191,6 +220,7 @@ export class Resource<ID> {
 			region.ranges.push({ start: offset, end });
 			region.ranges.sort((a, b) => a.start - b.start);
 
+			this.collect();
 			return this;
 		}
 
@@ -205,6 +235,7 @@ export class Resource<ID> {
 			this.regions.splice(insertIndex, 0, newRegion); // Insert before the first region with a greater offset
 		}
 
+		this.collect();
 		return this;
 	}
 }

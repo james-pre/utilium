@@ -201,7 +201,7 @@ export async function set(url: string, data: Uint8Array, options: SetOptions, in
 
 	if (!options.cacheOnly) await _fetch(new Request(url, init), { method: 'POST' }, true);
 
-	resource.add(data, offset).collect();
+	resource.add(data, offset);
 }
 
 /**
