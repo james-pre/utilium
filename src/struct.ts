@@ -107,8 +107,8 @@ export function serialize(instance: unknown): Uint8Array {
 				continue;
 			}
 
-			const Type = capitalize(type);
-			const fn = ('set' + Type) as `set${typeof Type}`;
+			const fn = `set${capitalize(type)}` as const;
+
 			if (fn == 'setInt64') {
 				view.setBigInt64(iOff, BigInt(value), !options.bigEndian);
 				continue;
@@ -116,6 +116,24 @@ export function serialize(instance: unknown): Uint8Array {
 
 			if (fn == 'setUint64') {
 				view.setBigUint64(iOff, BigInt(value), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'setInt128') {
+				view.setBigUint64(iOff + (!options.bigEndian ? 0 : 8), value & primitive.mask64, !options.bigEndian);
+				view.setBigInt64(iOff + (!options.bigEndian ? 8 : 0), value >> BigInt(64), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'setUint128') {
+				view.setBigUint64(iOff + (!options.bigEndian ? 0 : 8), value & primitive.mask64, !options.bigEndian);
+				view.setBigUint64(iOff + (!options.bigEndian ? 8 : 0), value >> BigInt(64), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'setFloat128') {
+				view.setFloat64(iOff + (!options.bigEndian ? 0 : 8), Number(value), !options.bigEndian);
+				view.setBigUint64(iOff + (!options.bigEndian ? 8 : 0), BigInt(0), !options.bigEndian);
 				continue;
 			}
 
@@ -163,8 +181,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 				object ||= [];
 			}
 
-			const Type = capitalize(type);
-			const fn = ('get' + Type) as `get${typeof Type}`;
+			const fn = `get${capitalize(type)}` as const;
 			if (fn == 'getInt64') {
 				object[key] = view.getBigInt64(iOff, !options.bigEndian);
 				continue;
@@ -172,6 +189,25 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 
 			if (fn == 'getUint64') {
 				object[key] = view.getBigUint64(iOff, !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'getInt128') {
+				object[key] =
+					(view.getBigInt64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64)) |
+					view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'getUint128') {
+				object[key] =
+					(view.getBigUint64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64)) |
+					view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
+				continue;
+			}
+
+			if (fn == 'getFloat128') {
+				object[key] = view.getFloat64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
 				continue;
 			}
 

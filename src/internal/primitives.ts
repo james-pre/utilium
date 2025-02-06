@@ -5,17 +5,20 @@ type BitsToBytes = {
 	'16': 2;
 	'32': 4;
 	'64': 8;
+	'128': 16;
 };
 
 export type Size<T extends string> = T extends `${'int' | 'uint' | 'float'}${infer bits}` ? (bits extends keyof BitsToBytes ? BitsToBytes[bits] : never) : never;
-export type Type = `${'int' | 'uint'}${8 | 16 | 32 | 64}` | `float${32 | 64}`;
-export type Valid = Type | Capitalize<Type> | 'char';
 
-export const types = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'float32', 'float64'] satisfies Type[];
+export const types = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'int128', 'uint128', 'float32', 'float64', 'float128'] as const;
+
+export type Type = (typeof types)[number];
+
+export type Valid = Type | Capitalize<Type> | 'char';
 
 export const valids = [...types, ...types.map(t => capitalize(t)), 'char'] satisfies Valid[];
 
-export const regex = /^(u?int|float)(8|16|32|64)$/i;
+export const regex = /^(u?int|float)(8|16|32|64|128)$/i;
 
 export type Normalize<T extends Valid> = T extends 'char' ? 'uint8' : Uncapitalize<T>;
 
@@ -36,3 +39,5 @@ export function checkValid(type: { toString(): string }): asserts type is Valid 
 		throw new TypeError('Not a valid primitive type: ' + type);
 	}
 }
+
+export const mask64 = BigInt('0xffffffffffffffff');
