@@ -24,6 +24,20 @@ export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(ty
 }
 
 /**
+ * Returns the offset (in bytes) of a member in a struct.
+ */
+export function offsetof(type: StaticLike | InstanceLike, memberName: string): number {
+	checkStruct(type);
+
+	const struct = isStatic(type) ? type : type.constructor;
+	const metadata = struct[symbol_metadata(struct)][Symbol.struct_metadata];
+
+	const member = metadata.members.get(memberName);
+	if (!member) throw new Error('Struct does not have member: ' + memberName);
+	return member.offset;
+}
+
+/**
  * Aligns a number
  */
 export function align(value: number, alignment: number): number {
