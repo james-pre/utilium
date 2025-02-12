@@ -48,8 +48,8 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 /**
  * Entries of T
  */
-export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]>
-	& [unknown, unknown][];
+export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]> &
+	[unknown, unknown][];
 
 /**
  * Entries of T
@@ -111,13 +111,4 @@ export function setByString(object: Record<string, any>, path: string, value: un
 		.split(separator)
 		.filter(p => p)
 		.reduce((o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}), object);
-}
-
-/** Binds a class member to the instance */
-// eslint-disable-next-line @typescript-eslint/unbound-method
-export function bound(value: unknown, { name, addInitializer }: ClassMethodDecoratorContext) {
-	addInitializer(function (this: any) {
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
-		this[name] = this[name].bind(this);
-	});
 }
