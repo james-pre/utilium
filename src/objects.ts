@@ -26,7 +26,7 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 	for (const key of keys) {
 		try {
 			to[key] = from[key] ?? defaults[key] ?? to[key];
-		} catch (e) {
+		} catch {
 			// Do nothing
 		}
 	}
@@ -46,7 +46,7 @@ export function isJSON(str: string) {
 	try {
 		JSON.parse(str);
 		return true;
-	} catch (e) {
+	} catch {
 		return false;
 	}
 }
@@ -88,4 +88,13 @@ export function setByString(object: Record<string, any>, path: string, value: un
 		.split(separator)
 		.filter(p => p)
 		.reduce((o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}), object);
+}
+
+/** Binds a class member to the instance */
+// eslint-disable-next-line @typescript-eslint/unbound-method
+export function bound(value: unknown, { name, addInitializer }: ClassMethodDecoratorContext) {
+	addInitializer(function (this: any) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+		this[name] = this[name].bind(this);
+	});
 }
