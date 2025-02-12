@@ -8,9 +8,27 @@ type BitsToBytes = {
 	'128': 16;
 };
 
-export type Size<T extends string> = T extends `${'int' | 'uint' | 'float'}${infer bits}` ? (bits extends keyof BitsToBytes ? BitsToBytes[bits] : never) : never;
+export type Size<T extends string> = T extends `${'int' | 'uint' | 'float'}${infer bits}`
+	? bits extends keyof BitsToBytes
+		? BitsToBytes[bits]
+		: never
+	: never;
 
-export const types = ['int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64', 'uint64', 'int128', 'uint128', 'float32', 'float64', 'float128'] as const;
+export const types = [
+	'int8',
+	'uint8',
+	'int16',
+	'uint16',
+	'int32',
+	'uint32',
+	'int64',
+	'uint64',
+	'int128',
+	'uint128',
+	'float32',
+	'float64',
+	'float128',
+] as const;
 
 export type Type = (typeof types)[number];
 

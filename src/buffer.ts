@@ -7,7 +7,11 @@ export interface ArrayBufferViewConstructor {
 	readonly prototype: ArrayBufferView<ArrayBufferLike>;
 	new (length: number): ArrayBufferView<ArrayBuffer>;
 	new (array: ArrayLike<number>): ArrayBufferView<ArrayBuffer>;
-	new <TArrayBuffer extends ArrayBufferLike = ArrayBuffer>(buffer: TArrayBuffer, byteOffset?: number, length?: number): ArrayBufferView<TArrayBuffer>;
+	new <TArrayBuffer extends ArrayBufferLike = ArrayBuffer>(
+		buffer: TArrayBuffer,
+		byteOffset?: number,
+		length?: number
+	): ArrayBufferView<TArrayBuffer>;
 	new (array: ArrayLike<number> | ArrayBuffer): ArrayBufferView<ArrayBuffer>;
 }
 

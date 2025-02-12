@@ -1,5 +1,14 @@
 import * as primitive from './internal/primitives.js';
-import type { DecoratorContext, InstanceLike, Member, MemberInit, Metadata, Options, Size, StaticLike } from './internal/struct.js';
+import type {
+	DecoratorContext,
+	InstanceLike,
+	Member,
+	MemberInit,
+	Metadata,
+	Options,
+	Size,
+	StaticLike,
+} from './internal/struct.js';
 import { checkInstance, checkStruct, isStatic, symbol_metadata, type MemberContext } from './internal/struct.js';
 import { capitalize } from './string.js';
 import type { ClassLike } from './types.js';
@@ -48,7 +57,10 @@ export function align(value: number, alignment: number): number {
  * Decorates a class as a struct
  */
 export function struct(options: Partial<Options> = {}) {
-	return function _decorateStruct<const T extends StaticLike>(target: T, context: ClassDecoratorContext & DecoratorContext): T {
+	return function _decorateStruct<const T extends StaticLike>(
+		target: T,
+		context: ClassDecoratorContext & DecoratorContext
+	): T {
 		context.metadata ??= {};
 		context.metadata[Symbol.struct_init] ||= [];
 		let size = 0;
@@ -110,7 +122,6 @@ export function serialize(instance: unknown): Uint8Array {
 		for (let i = 0; i < (length || 1); i++) {
 			const iOff = offset + sizeof(type) * i;
 
-			// @ts-expect-error 7053
 			let value = length! > 0 ? instance[name][i] : instance[name];
 			if (typeof value == 'string') {
 				value = value.charCodeAt(0);
@@ -165,21 +176,20 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][Symbol.struct_metadata];
 
-	const buffer = _buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
+	const buffer =
+		_buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
 
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
 	for (const [name, { type, offset, length }] of members) {
 		for (let i = 0; i < (length || 1); i++) {
-			// @ts-expect-error 7053
 			let object = length! > 0 ? instance[name] : instance;
 			const key = length! > 0 ? i : name,
 				iOff = offset + sizeof(type) * i;
 
-			// @ts-expect-error 7053
 			if (typeof instance[name] == 'string') {
-				// @ts-expect-error 7053
-				instance[name] = instance[name].slice(0, i) + String.fromCharCode(view.getUint8(iOff)) + instance[name].slice(i + 1);
+				instance[name] =
+					instance[name].slice(0, i) + String.fromCharCode(view.getUint8(iOff)) + instance[name].slice(i + 1);
 				continue;
 			}
 
@@ -208,15 +218,15 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 
 			if (fn == 'getInt128') {
 				object[key] =
-					(view.getBigInt64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64)) |
-					view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
+					(view.getBigInt64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64))
+					| view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
 				continue;
 			}
 
 			if (fn == 'getUint128') {
 				object[key] =
-					(view.getBigUint64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64)) |
-					view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
+					(view.getBigUint64(iOff + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64))
+					| view.getBigUint64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
 				continue;
 			}
 
@@ -233,7 +243,10 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 function _member<T extends primitive.Valid>(type: T) {
 	function _structMemberDecorator<const V>(length: number): (value: V, context: MemberContext) => V;
 	function _structMemberDecorator<const V>(value: V, context: MemberContext): V;
-	function _structMemberDecorator<const V>(valueOrLength: V | number, context?: MemberContext): V | ((value: V, context: MemberContext) => V) {
+	function _structMemberDecorator<const V>(
+		valueOrLength: V | number,
+		context?: MemberContext
+	): V | ((value: V, context: MemberContext) => V) {
 		if (typeof valueOrLength == 'number') {
 			return member(type, valueOrLength);
 		}
@@ -248,4 +261,6 @@ function _member<T extends primitive.Valid>(type: T) {
  *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
-export const types = Object.fromEntries(primitive.valids.map(t => [t, _member(t)])) as { [K in primitive.Valid]: ReturnType<typeof _member<K>> };
+export const types = Object.fromEntries(primitive.valids.map(t => [t, _member(t)])) as {
+	[K in primitive.Valid]: ReturnType<typeof _member<K>>;
+};

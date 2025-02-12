@@ -51,7 +51,12 @@ export abstract class FileMap<V> implements Map<string, V> {
 
 export type JSONObject<Key extends string | number | symbol = string> = { [K in Key]: JSONValue };
 
-export type JSONValue<Key extends string | number | symbol = string> = string | number | boolean | JSONObject<Key> | Array<JSONValue>;
+export type JSONValue<Key extends string | number | symbol = string> =
+	| string
+	| number
+	| boolean
+	| JSONObject<Key>
+	| Array<JSONValue>;
 
 export interface JSONFileMapOptions {
 	/**

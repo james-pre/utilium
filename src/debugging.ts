@@ -40,7 +40,10 @@ function defaultStringify(value: unknown): string {
 		case 'object':
 			if (value === null) return 'null';
 			if (ArrayBuffer.isView(value)) {
-				const length = 'length' in value ? (value.length as number) : value.byteLength / (value.constructor as any).BYTES_PER_ELEMENT;
+				const length =
+					'length' in value
+						? (value.length as number)
+						: value.byteLength / (value.constructor as any).BYTES_PER_ELEMENT;
 				return `${value.constructor.name.replaceAll('Array', '').toLowerCase()}[${length}]`;
 			}
 			if (Array.isArray(value)) return `unknown[${value.length}]`;
@@ -60,7 +63,13 @@ type LoggableDecoratorContext = Exclude<DecoratorContext, ClassFieldDecoratorCon
  * Create a function that can be used to decorate classes and non-field members.
  */
 export function createLogDecorator(options: CreateLoggerOptions) {
-	const { output = console.log, separator = '#', returnValue = false, stringify = defaultStringify, className = true } = options;
+	const {
+		output = console.log,
+		separator = '#',
+		returnValue = false,
+		stringify = defaultStringify,
+		className = true,
+	} = options;
 
 	return function log<T extends (...args: any[]) => any>(value: T, context: LoggableDecoratorContext): T {
 		if (context.kind == 'class') {

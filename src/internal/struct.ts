@@ -107,7 +107,8 @@ export function _polyfill_contextMetadata(target: object): void {
  * Gets a reference to Symbol.metadata, even on platforms that do not expose it globally (like Node)
  */
 export function symbol_metadata(arg: ClassLike): typeof Symbol.metadata {
-	const symbol_metadata = Symbol.metadata || Object.getOwnPropertySymbols(arg).find(s => s.description == 'Symbol.metadata');
+	const symbol_metadata =
+		Symbol.metadata || Object.getOwnPropertySymbols(arg).find(s => s.description == 'Symbol.metadata');
 	_polyfill_contextMetadata(arg);
 	if (!symbol_metadata) {
 		throw new ReferenceError('Could not get a reference to Symbol.metadata');
@@ -117,7 +118,11 @@ export function symbol_metadata(arg: ClassLike): typeof Symbol.metadata {
 }
 
 export function isStatic<T extends Metadata = Metadata>(arg: unknown): arg is Static<T> {
-	return typeof arg == 'function' && symbol_metadata(arg as ClassLike) in arg && isValidMetadata(arg[symbol_metadata(arg as ClassLike)]);
+	return (
+		typeof arg == 'function'
+		&& symbol_metadata(arg as ClassLike) in arg
+		&& isValidMetadata(arg[symbol_metadata(arg as ClassLike)])
+	);
 }
 
 export interface Instance<T extends Metadata = Metadata> {
@@ -132,9 +137,14 @@ export function isInstance<T extends Metadata = Metadata>(arg: unknown): arg is 
 	return arg != null && typeof arg == 'object' && isStatic(arg.constructor);
 }
 
-export function checkInstance<T extends Metadata = Metadata>(arg: unknown): asserts arg is Instance<T> {
+export function checkInstance<T extends Metadata = Metadata>(
+	arg: unknown
+): asserts arg is Instance<T> & Record<keyof any, any> {
 	if (!isInstance(arg)) {
-		throw new TypeError((typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg) + ' is not a struct instance');
+		throw new TypeError(
+			(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
+				+ ' is not a struct instance'
+		);
 	}
 }
 
@@ -144,10 +154,17 @@ export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is In
 
 export function checkStruct<T extends Metadata = Metadata>(arg: unknown): asserts arg is Instance<T> | Static<T> {
 	if (!isStruct(arg)) {
-		throw new TypeError((typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg) + ' is not a struct');
+		throw new TypeError(
+			(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
+				+ ' is not a struct'
+		);
 	}
 }
 
 export type Like<T extends Metadata = Metadata> = InstanceLike<T> | StaticLike<T>;
 
-export type Size<T extends primitive.Valid | StaticLike | InstanceLike> = T extends primitive.Valid ? primitive.Size<T> : T extends Like<infer M> ? M['size'] : number;
+export type Size<T extends primitive.Valid | StaticLike | InstanceLike> = T extends primitive.Valid
+	? primitive.Size<T>
+	: T extends Like<infer M>
+		? M['size']
+		: number;

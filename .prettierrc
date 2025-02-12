@@ -3,6 +3,7 @@
 	"useTabs": true,
 	"trailingComma": "es5",
 	"tabWidth": 4,
-	"printWidth": 180,
-	"arrowParens": "avoid"
+	"printWidth": 120,
+	"arrowParens": "avoid",
+	"experimentalOperatorPosition": "start"
 }

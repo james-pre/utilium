@@ -2,7 +2,11 @@
  * Expands the type T (for intellisense and debugging)
  * @see https://stackoverflow.com/a/69288824/17637456
  */
-export type Expand<T> = T extends (...args: infer A) => infer R ? (...args: Expand<A>) => Expand<R> : T extends infer O ? { [K in keyof O]: O[K] } : never;
+export type Expand<T> = T extends (...args: infer A) => infer R
+	? (...args: Expand<A>) => Expand<R>
+	: T extends infer O
+		? { [K in keyof O]: O[K] }
+		: never;
 
 /**
  * Recursivly expands the type T (for intellisense and debugging)
@@ -52,14 +56,22 @@ export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<T>;
  * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
  */
 export type NestedKeys<T extends object> = {
-	[P in keyof T & (string | number)]: T[P] extends Date ? `${P}` : T[P] extends Record<string, unknown> ? `${P}` | `${P}.${NestedKeys<T[P]>}` : `${P}`;
+	[P in keyof T & (string | number)]: T[P] extends Date
+		? `${P}`
+		: T[P] extends Record<string, unknown>
+			? `${P}` | `${P}.${NestedKeys<T[P]>}`
+			: `${P}`;
 }[keyof T & (string | number)];
 
 /**
  * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
  */
 export type PartialRecursive<T> = {
-	[P in keyof T]?: T[P] extends (infer U)[] ? PartialRecursive<U>[] : T[P] extends object | undefined ? PartialRecursive<T[P]> : T[P];
+	[P in keyof T]?: T[P] extends (infer U)[]
+		? PartialRecursive<U>[]
+		: T[P] extends object | undefined
+			? PartialRecursive<T[P]>
+			: T[P];
 };
 
 /**
@@ -68,7 +80,9 @@ export type PartialRecursive<T> = {
  */
 export type UnionKeys<T> = T extends T ? keyof T : never;
 
-type StrictUnionHelper<T, TAll> = T extends unknown ? T & Partial<Record<Exclude<UnionKeys<TAll>, keyof T>, never>> : never;
+type StrictUnionHelper<T, TAll> = T extends unknown
+	? T & Partial<Record<Exclude<UnionKeys<TAll>, keyof T>, never>>
+	: never;
 
 /**
  * @see https://stackoverflow.com/a/65805753/17637456
@@ -130,7 +144,8 @@ export type Remove<A extends unknown[], B extends unknown[]> = Empty extends B ?
  */
 export type Length<T extends { length: number }> = T['length'];
 
-type _FromLength<N extends number, R extends unknown[] = Empty> = Length<R> extends N ? R : _FromLength<N, Unshift<R, 0>>;
+type _FromLength<N extends number, R extends unknown[] = Empty> =
+	Length<R> extends N ? R : _FromLength<N, Unshift<R, 0>>;
 
 /**
  * Creates a tuple of length N
@@ -162,12 +177,20 @@ export type Subtract<A extends number, B extends number> = Length<Remove<_FromLe
 /**
  * Gets the type of an array's members
  */
-export type Member<T, D = null> = D extends 0 ? T : T extends (infer U)[] ? Member<U, D extends number ? Decrement<D> : null> : T;
+export type Member<T, D = null> = D extends 0
+	? T
+	: T extends (infer U)[]
+		? Member<U, D extends number ? Decrement<D> : null>
+		: T;
 
 /**
  * Flattens an array
  */
-export type FlattenArray<A extends unknown[], D = null> = A extends (infer U)[] ? Member<Exclude<U, A>, D>[] : A extends unknown[] ? { [K in keyof A]: Member<A[K], D> } : A;
+export type FlattenArray<A extends unknown[], D = null> = A extends (infer U)[]
+	? Member<Exclude<U, A>, D>[]
+	: A extends unknown[]
+		? { [K in keyof A]: Member<A[K], D> }
+		: A;
 
 /**
  * Whether T is a tuple
@@ -178,7 +201,11 @@ export type IsTuple<T> = T extends [] ? false : T extends [infer _Head, ...infer
 /**
  * Flattens a tuple
  */
-export type FlattenTuple<A extends unknown[]> = A extends [infer U, ...infer Rest] ? (U extends unknown[] ? [...U, ...FlattenTuple<Rest>] : [U, ...FlattenTuple<Rest>]) : [];
+export type FlattenTuple<A extends unknown[]> = A extends [infer U, ...infer Rest]
+	? U extends unknown[]
+		? [...U, ...FlattenTuple<Rest>]
+		: [U, ...FlattenTuple<Rest>]
+	: [];
 
 /**
  * Flattens an array or tuple
@@ -195,7 +222,9 @@ export type Tuple<T, N extends number> = _Tuple<T, N>;
 /**
  * Makes all members of the tuple T optional
  */
-export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer Tail] ? [Head?, ...OptionalTuple<Tail>] : T;
+export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer Tail]
+	? [Head?, ...OptionalTuple<Tail>]
+	: T;
 
 /**
  * Keys of a Map
@@ -220,7 +249,9 @@ export type LastOfUnion<T> = UnionToIntersection<T extends any ? () => T : never
  * Converts a union to a tuple
  * @see https://stackoverflow.com/a/55128956/17637456
  */
-export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N ? [] : Push<UnionToTuple<Exclude<T, L>>, L>;
+export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N
+	? []
+	: Push<UnionToTuple<Exclude<T, L>>, L>;
 
 /**
  * Makes properties with keys assignable to K in T required

@@ -22,7 +22,11 @@ export type CacheOptions = cache.Options;
  */
 export const resourcesCache = new Map<string, cache.Resource<string> | undefined>();
 
-export type Issue = { tag: 'status'; response: Response } | { tag: 'buffer'; response: Response; message: string } | { tag: 'fetch' | 'size'; message: string } | Error;
+export type Issue =
+	| { tag: 'status'; response: Response }
+	| { tag: 'buffer'; response: Response; message: string }
+	| { tag: 'fetch' | 'size'; message: string }
+	| Error;
 
 /**
  * @deprecated Use `Issue`
@@ -103,7 +107,11 @@ export async function get(url: string, options: GetOptions, init: RequestInit = 
 
 		const { headers } = await fetch(req, { method: 'HEAD' });
 		const size = parseInt(headers.get('Content-Length') ?? '');
-		if (typeof size != 'number') throw { tag: 'size', message: 'Response is missing content-length header and no size was provided' } satisfies Issue;
+		if (typeof size != 'number')
+			throw {
+				tag: 'size',
+				message: 'Response is missing content-length header and no size was provided',
+			} satisfies Issue;
 		options.size = size;
 	}
 
@@ -171,7 +179,10 @@ export function getCached(url: string, options: GetOptions): { data?: Uint8Array
 
 			if (overlapStart >= overlapEnd) continue;
 
-			data.set(region.data.subarray(overlapStart - region.offset, overlapEnd - region.offset), overlapStart - start);
+			data.set(
+				region.data.subarray(overlapStart - region.offset, overlapEnd - region.offset),
+				overlapStart - start
+			);
 		}
 	}
 
