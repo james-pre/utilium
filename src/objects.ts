@@ -53,12 +53,16 @@ export function isJSON(str: string) {
 
 export function resolveConstructors(object: object): string[] {
 	const constructors = [];
-	let prototype = object;
-	while (prototype && !['Function', 'Object'].includes(prototype.constructor.name)) {
-		prototype = Object.getPrototypeOf(prototype);
+	for (let prototype = object; prototype && !['Function', 'Object'].includes(prototype.constructor.name); prototype = Object.getPrototypeOf(prototype)) {
 		constructors.push(prototype.constructor.name);
 	}
 	return constructors;
+}
+
+export function* getAllPrototypes(object: object): IterableIterator<object> {
+	for (let prototype = object; prototype; prototype = Object.getPrototypeOf(prototype)) {
+		yield prototype;
+	}
 }
 
 /**
