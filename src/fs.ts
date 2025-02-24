@@ -1,4 +1,4 @@
-import { isJSON } from './objects.js';
+import { isJSON, type JSONValue } from './objects.js';
 import * as fs from 'fs';
 
 export abstract class FileMap<V> implements Map<string, V> {
@@ -48,15 +48,6 @@ export abstract class FileMap<V> implements Map<string, V> {
 		return this._map.forEach.bind(this._map);
 	}
 }
-
-export type JSONObject<Key extends string | number | symbol = string> = { [K in Key]: JSONValue };
-
-export type JSONValue<Key extends string | number | symbol = string> =
-	| string
-	| number
-	| boolean
-	| JSONObject<Key>
-	| Array<JSONValue>;
 
 export interface JSONFileMapOptions {
 	/**

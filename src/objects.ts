@@ -48,8 +48,8 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 /**
  * Entries of T
  */
-export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]>
-	& [unknown, unknown][];
+export type EntriesTuple<T extends object> = UnionToTuple<{ [K in keyof T]: [K, T[K]] }[keyof T]> &
+	[unknown, unknown][];
 
 /**
  * Entries of T
@@ -112,3 +112,9 @@ export function setByString(object: Record<string, any>, path: string, value: un
 		.filter(p => p)
 		.reduce((o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}), object);
 }
+
+export type JSONPrimitive = null | string | number | boolean;
+
+export type JSONObject = { [K in string]: JSONValue };
+
+export type JSONValue = JSONPrimitive | JSONObject | JSONValue[];
