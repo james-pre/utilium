@@ -122,7 +122,7 @@ export type JSONValue = JSONPrimitive | JSONObject | JSONValue[];
 /**
  * An object `T` with all of its functions bound to a `This` value
  */
-type Bound<T extends object, This = any> = T & {
+export type Bound<T extends object, This = any> = T & {
 	[k in keyof T]: T[k] extends (...args: any[]) => any
 		? (this: This, ...args: Parameters<T[k]>) => ReturnType<T[k]>
 		: T[k];
