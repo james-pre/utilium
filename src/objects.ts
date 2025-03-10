@@ -118,3 +118,21 @@ export type JSONPrimitive = null | string | number | boolean;
 export type JSONObject = { [K in string]: JSONValue };
 
 export type JSONValue = JSONPrimitive | JSONObject | JSONValue[];
+
+/**
+ * An object `T` with all of its functions bound to a `This` value
+ */
+type Bound<T extends object, This = any> = T & {
+	[k in keyof T]: T[k] extends (...args: any[]) => any
+		? (this: This, ...args: Parameters<T[k]>) => ReturnType<T[k]>
+		: T[k];
+};
+
+/**
+ * Binds a this value for all of the functions in an object (not recursive)
+ */
+export function bindFunctions<T extends object, This = any>(fns: T, thisValue: This): Bound<T, This> {
+	return Object.fromEntries(
+		Object.entries(fns).map(([k, v]) => [k, typeof v == 'function' ? v.bind(thisValue) : v])
+	) as Bound<T, This>;
+}
