@@ -14,7 +14,7 @@ export type Size<T extends string> = T extends `${'int' | 'uint' | 'float'}${inf
 		: never
 	: never;
 
-export const types = [
+export const typeNames = [
 	'int8',
 	'uint8',
 	'int16',
@@ -30,11 +30,11 @@ export const types = [
 	'float128',
 ] as const;
 
-export type Type = (typeof types)[number];
+export type Typename = (typeof typeNames)[number];
 
-export type Valid = Type | Capitalize<Type> | 'char';
+export type Valid = Typename | Capitalize<Typename> | 'char';
 
-export const valids = [...types, ...types.map(t => capitalize(t)), 'char'] satisfies Valid[];
+export const validNames = [...typeNames, ...typeNames.map(t => capitalize(t)), 'char'] satisfies Valid[];
 
 export const regex = /^(u?int|float)(8|16|32|64|128)$/i;
 
@@ -44,7 +44,7 @@ export function normalize<T extends Valid>(type: T): Normalize<T> {
 	return (type == 'char' ? 'uint8' : type.toLowerCase()) as Normalize<T>;
 }
 
-export function isType(type: { toString(): string }): type is Type {
+export function isType(type: { toString(): string }): type is Typename {
 	return regex.test(type.toString());
 }
 

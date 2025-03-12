@@ -1,3 +1,4 @@
+import { toUint8Array } from './buffer.js';
 import * as primitive from './internal/primitives.js';
 import type {
 	DecoratorContext,
@@ -8,8 +9,10 @@ import type {
 	Options,
 	Size,
 	StaticLike,
+	TypeLike,
+	MemberContext,
 } from './internal/struct.js';
-import { checkInstance, checkStruct, isStatic, symbol_metadata, type MemberContext } from './internal/struct.js';
+import { checkInstance, checkStruct, isStatic, isUserDefined, symbol_metadata } from './internal/struct.js';
 import { capitalize } from './string.js';
 import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
@@ -17,7 +20,7 @@ export * as Struct from './internal/struct.js';
 /**
  * Gets the size in bytes of a type
  */
-export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(type: T): Size<T> {
+export function sizeof<T extends TypeLike>(type: T): Size<T> {
 	// primitive
 	if (typeof type == 'string') {
 		primitive.checkValid(type);
@@ -25,11 +28,15 @@ export function sizeof<T extends primitive.Valid | StaticLike | InstanceLike>(ty
 		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
 	}
 
+	if (isUserDefined(type)) {
+		return type[Symbol.size] as Size<T>;
+	}
+
 	checkStruct(type);
 
 	const struct = isStatic(type) ? type : type.constructor;
 
-	return struct[symbol_metadata(struct)][Symbol.struct_metadata].size as Size<T>;
+	return struct[symbol_metadata(struct)].struct.size as Size<T>;
 }
 
 /**
@@ -39,7 +46,7 @@ export function offsetof(type: StaticLike | InstanceLike, memberName: string): n
 	checkStruct(type);
 
 	const struct = isStatic(type) ? type : type.constructor;
-	const metadata = struct[symbol_metadata(struct)][Symbol.struct_metadata];
+	const metadata = struct[symbol_metadata(struct)].struct;
 
 	const member = metadata.members.get(memberName);
 	if (!member) throw new Error('Struct does not have member: ' + memberName);
@@ -62,11 +69,12 @@ export function struct(options: Partial<Options> = {}) {
 		context: ClassDecoratorContext & DecoratorContext
 	): T {
 		context.metadata ??= {};
-		context.metadata[Symbol.struct_init] ||= [];
+		context.metadata.struct ??= {};
+		context.metadata.struct.init ??= [];
+
 		let size = 0;
 		const members = new Map<string, Member>();
-		for (const _ of context.metadata[Symbol.struct_init]!) {
-			const { name, type, length } = _;
+		for (const { name, type, length } of context.metadata.struct.init) {
 			if (!primitive.isValid(type) && !isStatic(type)) {
 				throw new TypeError('Not a valid type: ' + type);
 			}
@@ -80,7 +88,7 @@ export function struct(options: Partial<Options> = {}) {
 			size = align(size, options.align || 1);
 		}
 
-		context.metadata[Symbol.struct_metadata] = { options, members, size } satisfies Metadata;
+		context.metadata.struct = { options, members, size } satisfies Metadata;
 		return target;
 	};
 }
@@ -96,13 +104,12 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
 			name = name.toString();
 		}
 
-		if (!name) {
-			throw new ReferenceError('Invalid name for struct member');
-		}
+		if (!name) throw new ReferenceError('Invalid name for struct member');
 
 		context.metadata ??= {};
-		context.metadata[Symbol.struct_init] ||= [];
-		context.metadata[Symbol.struct_init]!.push({ name, type, length } satisfies MemberInit);
+		context.metadata.struct ??= {};
+		context.metadata.struct.init ??= [];
+		context.metadata.struct.init.push({ name, type, length } satisfies MemberInit);
 		return value;
 	};
 }
@@ -111,8 +118,10 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
+	if (isUserDefined(instance)) return instance[Symbol.serialize]();
+
 	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][Symbol.struct_metadata];
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
@@ -173,11 +182,12 @@ export function serialize(instance: unknown): Uint8Array {
  * Deserializes a struct from a Uint8Array
  */
 export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayBufferView) {
-	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)][Symbol.struct_metadata];
+	const buffer = toUint8Array(_buffer);
 
-	const buffer =
-		_buffer instanceof Uint8Array ? _buffer : new Uint8Array('buffer' in _buffer ? _buffer.buffer : _buffer);
+	if (isUserDefined(instance)) return instance[Symbol.deserialize](buffer);
+
+	checkInstance(instance);
+	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
@@ -261,6 +271,6 @@ function _member<T extends primitive.Valid>(type: T) {
  *
  * Instead of writing `@member(type)` you can write `@types.type`, or `@types.type(length)` for arrays
  */
-export const types = Object.fromEntries(primitive.valids.map(t => [t, _member(t)])) as {
+export const types = Object.fromEntries(primitive.validNames.map(t => [t, _member(t)])) as {
 	[K in primitive.Valid]: ReturnType<typeof _member<K>>;
 };

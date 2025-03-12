@@ -3,25 +3,36 @@ import type * as primitive from './primitives.js';
 
 declare global {
 	interface SymbolConstructor {
-		readonly struct_init: unique symbol;
-		readonly struct_metadata: unique symbol;
+		/** User-defined size */
+		readonly size: unique symbol;
+
+		/** User-defined serialization */
+		readonly serialize: unique symbol;
+
+		/** User-defined deserialization */
+		readonly deserialize: unique symbol;
 	}
 }
 
-// @ts-expect-error 2322
-Symbol.struct_init ||= Symbol('struct_init');
+Object.assign(Symbol, {
+	size: Symbol('uSize'),
+	serialize: Symbol('uSerialize'),
+	deserialize: Symbol('uDeserialize'),
+});
 
-// @ts-expect-error 2322
-Symbol.struct_metadata ||= Symbol('struct_metadata');
+export type TypeLike = UserDefined | Like | primitive.Valid;
 
+export type Type = UserDefined | Static | primitive.Typename;
+
+/**
+ * Member initialization data
+ * This is needed since class decorators are called *after* member decorators
+ */
 export interface MemberInit {
 	name: string;
 	type: string | ClassLike;
 	length?: number;
 }
-
-/** @deprecated */
-export const init: typeof Symbol.struct_init = Symbol.struct_init;
 
 /**
  * Options for struct initialization
@@ -33,7 +44,7 @@ export interface Options {
 }
 
 export interface Member {
-	type: primitive.Type | Static;
+	type: Type;
 	offset: number;
 	length?: number;
 }
@@ -42,15 +53,12 @@ export interface Metadata {
 	options: Partial<Options>;
 	members: Map<string, Member>;
 	size: number;
+	init?: MemberInit[];
 }
 
-/** @deprecated */
-export const metadata: typeof Symbol.struct_metadata = Symbol.struct_metadata;
-
-export interface _DecoratorMetadata<T extends Metadata = Metadata> extends DecoratorMetadata {
-	[Symbol.struct_metadata]?: T;
-	[Symbol.struct_init]?: MemberInit[];
-}
+type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
+	struct?: Partial<T>;
+};
 
 export interface DecoratorContext<T extends Metadata = Metadata> {
 	metadata: _DecoratorMetadata<T>;
@@ -59,9 +67,7 @@ export interface DecoratorContext<T extends Metadata = Metadata> {
 export type MemberContext = ClassMemberDecoratorContext & DecoratorContext;
 
 export interface Static<T extends Metadata = Metadata> {
-	[Symbol.metadata]: DecoratorMetadata & {
-		[Symbol.struct_metadata]: T;
-	};
+	[Symbol.metadata]: { struct: T };
 	new (): Instance<T>;
 	prototype: Instance<T>;
 }
@@ -73,9 +79,9 @@ export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
 export function isValidMetadata<T extends Metadata = Metadata>(
 	arg: unknown
 ): arg is DecoratorMetadata & {
-	[Symbol.struct_metadata]: T;
+	struct: T;
 } {
-	return arg != null && typeof arg == 'object' && Symbol.struct_metadata in arg;
+	return arg != null && typeof arg == 'object' && 'struct' in arg;
 }
 
 /**
@@ -89,12 +95,8 @@ export function isValidMetadata<T extends Metadata = Metadata>(
  * @see https://github.com/microsoft/TypeScript/issues/53461
  */
 export function _polyfill_contextMetadata(target: object): void {
-	if (!Symbol?.metadata) {
-		return;
-	}
-	if (Symbol.metadata in target) {
-		return;
-	}
+	if (!Symbol?.metadata || Symbol.metadata in target) return;
+
 	Object.defineProperty(target, Symbol.metadata, {
 		enumerable: true,
 		configurable: true,
@@ -140,12 +142,11 @@ export function isInstance<T extends Metadata = Metadata>(arg: unknown): arg is 
 export function checkInstance<T extends Metadata = Metadata>(
 	arg: unknown
 ): asserts arg is Instance<T> & Record<keyof any, any> {
-	if (!isInstance(arg)) {
-		throw new TypeError(
-			(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
-				+ ' is not a struct instance'
-		);
-	}
+	if (isInstance(arg)) return;
+	throw new TypeError(
+		(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
+			+ ' is not a struct instance'
+	);
 }
 
 export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is Instance<T> | Static<T> {
@@ -153,18 +154,35 @@ export function isStruct<T extends Metadata = Metadata>(arg: unknown): arg is In
 }
 
 export function checkStruct<T extends Metadata = Metadata>(arg: unknown): asserts arg is Instance<T> | Static<T> {
-	if (!isStruct(arg)) {
-		throw new TypeError(
-			(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
-				+ ' is not a struct'
-		);
-	}
+	if (isStruct(arg)) return;
+	throw new TypeError(
+		(typeof arg == 'function' ? arg.name : typeof arg == 'object' && arg ? arg.constructor.name : arg)
+			+ ' is not a struct'
+	);
+}
+
+export interface UserDefined {
+	readonly [Symbol.size]: number;
+	[Symbol.serialize](): Uint8Array;
+	[Symbol.deserialize](value: Uint8Array): void;
+}
+
+export function isUserDefined(arg: unknown): arg is UserDefined {
+	return (
+		typeof arg == 'object'
+		&& arg != null
+		&& Symbol.size in arg
+		&& Symbol.serialize in arg
+		&& Symbol.deserialize in arg
+	);
 }
 
 export type Like<T extends Metadata = Metadata> = InstanceLike<T> | StaticLike<T>;
 
-export type Size<T extends primitive.Valid | StaticLike | InstanceLike> = T extends primitive.Valid
-	? primitive.Size<T>
-	: T extends Like<infer M>
-		? M['size']
-		: number;
+export type Size<T extends TypeLike> = T extends { readonly [Symbol.size]: infer S }
+	? S
+	: T extends primitive.Valid
+		? primitive.Size<T>
+		: T extends Like<infer M>
+			? M['size']
+			: number;
