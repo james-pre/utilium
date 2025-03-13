@@ -32,14 +32,11 @@ class Segment {
 
 @struct()
 class BinObject {
-	@member(AnotherHeader)
-	header: AnotherHeader = new AnotherHeader();
+	@member(AnotherHeader) header = new AnotherHeader();
 
-	@t.char(32)
-	comment: string = '';
+	@t.char(32) comment: string = '';
 
-	@member(Segment, 16)
-	public segments: Segment[] = [new Segment()];
+	@member(Segment, 16) public segments: Segment[] = [new Segment()];
 }
 
 const obj = new BinObject();

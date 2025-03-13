@@ -1,4 +1,5 @@
 import { toUint8Array } from './buffer.js';
+import { _debugLog } from './debugging.js';
 import * as primitive from './internal/primitives.js';
 import type {
 	DecoratorContext,
@@ -10,7 +11,6 @@ import type {
 	Metadata,
 	Options,
 	Size,
-	Static,
 	StaticLike,
 	TypeLike,
 } from './internal/struct.js';
@@ -20,16 +20,28 @@ import { capitalize } from './string.js';
 import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
 
+function _memberTypeName(instance: Instance<Metadata>, name: string): string {
+	const { struct } = instance.constructor[symbol_metadata(instance.constructor)];
+
+	const member = struct.members.get(name);
+
+	if (!member) throw new Error('Struct does not have member: ' + name);
+
+	let base = `${instance.constructor.name}.${name} ${typeof member.type == 'string' ? member.type : isCustom(member.type) ? member.type.constructor.name : member.type.name}`;
+
+	const length = _memberLength(instance, name, member.length);
+
+	if (length != -1) base += `[${length}]`;
+
+	return base;
+}
+
 /**
  * Gets the length of an array in a struct
  * @param length The numeric length or the name of the field which has the array length (like __counted_by)
  * @param name The name of the array field— only used for errors
  */
-function _memberLength<T extends Metadata>(
-	struct: Instance<T>,
-	length: string | number | undefined,
-	name: string
-): number {
+function _memberLength<T extends Metadata>(struct: Instance<T>, name: string, length?: string | number): number {
 	if (length === undefined) return -1;
 	if (typeof length != 'string')
 		return Number.isSafeInteger(length) && length >= 0
@@ -76,18 +88,47 @@ export function sizeof<T extends TypeLike>(type: T): Size<T> {
 	return size as Size<T>;
 }
 
+export function dynamicOffsets<const T extends Metadata>(instance: Instance<T>): Record<string, number> {
+	const { struct } = instance.constructor[symbol_metadata(instance.constructor)];
+
+	const offsets: Record<string, number> = {};
+	let offset = 0;
+
+	for (const [name, { type: memberType, length: rawLength }] of struct.members) {
+		const length = _memberLength(instance, name, rawLength);
+		offsets[name] = offset;
+		offset += sizeof(memberType) * Math.abs(length);
+	}
+
+	return offsets;
+}
+
 /**
  * Returns the offset (in bytes) of a member in a struct.
  */
 export function offsetof(type: StaticLike | InstanceLike, memberName: string): number {
 	checkStruct(type);
 
-	const struct = isStatic(type) ? type : type.constructor;
-	const metadata = struct[symbol_metadata(struct)].struct;
+	const constructor = isStatic(type) ? type : type.constructor;
 
-	const member = metadata.members.get(memberName);
-	if (!member) throw new Error('Struct does not have member: ' + memberName);
-	return member.offset;
+	const { struct } = constructor[symbol_metadata(constructor)];
+
+	if (isStatic(type) || !struct.isDynamic) {
+		return (
+			struct.members.get(memberName)?.staticOffset
+			?? _throw(new Error('Struct does not have member: ' + memberName))
+		);
+	}
+
+	let offset = 0;
+
+	for (const [name, { type: memberType, length: rawLength }] of struct.members) {
+		if (name == memberName) return offset;
+		const length = _memberLength(type, name, rawLength);
+		offset += sizeof(memberType) * Math.abs(length);
+	}
+
+	throw new Error('Struct does not have member: ' + memberName);
 }
 
 /**
@@ -109,22 +150,26 @@ export function struct(options: Partial<Options> = {}) {
 		context.metadata.struct ??= {};
 		context.metadata.struct.init ??= [];
 
-		let staticSize = 0;
+		let staticSize = 0,
+			isDynamic = false;
 		const members = new Map<string, Member>();
 		for (const { name, type, length } of context.metadata.struct.init) {
 			if (!primitive.isValid(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type);
 
 			members.set(name, {
-				offset: options.isUnion ? 0 : staticSize,
+				staticOffset: options.isUnion ? 0 : staticSize,
 				type: primitive.isValid(type) ? primitive.normalize(type) : type,
 				length,
 			});
 			const memberSize = typeof length == 'string' ? 0 : sizeof(type) * (length || 1);
+			isDynamic ||= typeof length == 'string';
 			staticSize = options.isUnion ? Math.max(staticSize, memberSize) : staticSize + memberSize;
 			staticSize = align(staticSize, options.align || 1);
+
+			_debugLog('define', target.name + '.' + name);
 		}
 
-		context.metadata.struct = { options, members, staticSize } satisfies Metadata;
+		context.metadata.struct = { options, members, staticSize, isDynamic } satisfies Metadata;
 
 		return target;
 	};
@@ -158,16 +203,21 @@ export function serialize(instance: unknown): Uint8Array {
 	if (isCustom(instance) && typeof instance[Symbol.serialize] == 'function') return instance[Symbol.serialize]!();
 
 	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
+	const { options, members, isDynamic } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
 	const buffer = new Uint8Array(sizeof(instance));
 	const view = new DataView(buffer.buffer);
 
+	const offsets = isDynamic && dynamicOffsets(instance);
+
 	// for unions we should write members in ascending last modified order, but we don't have that info.
-	for (const [name, { type, length: rawLength, offset }] of members) {
-		const length = _memberLength(instance, rawLength, name);
+	for (const [name, { type, length: rawLength, staticOffset }] of members) {
+		const length = _memberLength(instance, name, rawLength);
+
+		_debugLog('serialize', _memberTypeName(instance, name), 'at', offsets ? offsets[name] : staticOffset);
+
 		for (let i = 0; i < Math.abs(length); i++) {
-			const iOff = offset + sizeof(type) * i;
+			const iOff = (offsets ? offsets[name] : staticOffset) + sizeof(type) * i;
 
 			let value = length != -1 ? instance[name][i] : instance[name];
 			if (typeof value == 'string') {
@@ -226,16 +276,21 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 		return instance[Symbol.deserialize]!(buffer);
 
 	checkInstance(instance);
-	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
+	const { options, members, isDynamic } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-	for (const [name, { type, offset, length: rawLength }] of members) {
-		const length = _memberLength(instance, rawLength, name);
+	for (const [name, { type, length: rawLength, staticOffset }] of members) {
+		const length = _memberLength(instance, name, rawLength);
+
+		const offsets = isDynamic && dynamicOffsets(instance);
+
+		_debugLog('deserialize', _memberTypeName(instance, name), 'at', offsets ? offsets[name] : staticOffset);
+
 		for (let i = 0; i < Math.abs(length); i++) {
 			let object = length != -1 ? instance[name] : instance;
 			const key = length != -1 ? i : name,
-				iOff = offset + sizeof(type) * i;
+				iOff = offsetof(instance, name) + sizeof(type) * i;
 
 			if (typeof instance[name] == 'string') {
 				instance[name] =
@@ -281,6 +336,10 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 			if (fn == 'getFloat128') {
 				object[key] = view.getFloat64(iOff + (!options.bigEndian ? 0 : 8), !options.bigEndian);
 				continue;
+			}
+
+			if (iOff + sizeof(type) > buffer.byteLength) {
+				console.error(iOff, sizeof(type), buffer.byteLength);
 			}
 
 			object[key] = view[fn](iOff, !options.bigEndian);

@@ -45,7 +45,7 @@ export interface Options {
 
 export interface Member {
 	type: Type;
-	offset: number;
+	staticOffset: number;
 	length?: number | string;
 }
 
@@ -54,6 +54,7 @@ export interface Metadata {
 	members: Map<string, Member>;
 	init?: MemberInit[];
 	staticSize: number;
+	isDynamic: boolean;
 }
 
 type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
