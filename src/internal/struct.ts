@@ -14,13 +14,19 @@ declare global {
 	}
 }
 
+/**
+ * Polyfill Symbol.metadata
+ * @see https://github.com/microsoft/TypeScript/issues/53461
+ */
+(Symbol as { metadata: symbol }).metadata ??= Symbol.for('Symbol.metadata');
+
 Object.assign(Symbol, {
 	size: Symbol('uSize'),
 	serialize: Symbol('uSerialize'),
 	deserialize: Symbol('uDeserialize'),
 });
 
-export type TypeLike = Custom | Like | primitive.Valid;
+export type TypeLike = Custom | Like | primitive.Valid | undefined | null;
 
 export type Type = Custom | Static | primitive.Typename;
 
@@ -44,25 +50,41 @@ export interface Options {
 }
 
 export interface Member {
+	name: string;
 	type: Type;
 	staticOffset: number;
 	length?: number | string;
+
+	/** A C-style type/name declaration string, used for diagnostics */
+	decl: string;
 }
 
 export interface Metadata {
 	options: Partial<Options>;
 	members: Map<string, Member>;
-	init?: MemberInit[];
 	staticSize: number;
 	isDynamic: boolean;
 }
 
 type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
-	struct?: Partial<T>;
+	struct?: T;
+	structInit?: MemberInit[];
 };
 
 export interface DecoratorContext<T extends Metadata = Metadata> {
 	metadata: _DecoratorMetadata<T>;
+}
+
+/**
+ * Initializes the struct metadata for a class
+ * This also handles copying metadata from parent classes
+ */
+export function initMetadata(context: DecoratorContext): MemberInit[] {
+	context.metadata ??= {};
+
+	context.metadata.structInit = [...(context.metadata.structInit ?? [])];
+
+	return context.metadata.structInit;
 }
 
 export type MemberContext = ClassMemberDecoratorContext & DecoratorContext;
@@ -86,17 +108,12 @@ export function isValidMetadata<T extends Metadata = Metadata>(
 }
 
 /**
- * Polyfill Symbol.metadata
- * @see https://github.com/microsoft/TypeScript/issues/53461
- */
-(Symbol as { metadata: symbol }).metadata ??= Symbol.for('Symbol.metadata');
-
-/**
  * Polyfill context.metadata
  * @see https://github.com/microsoft/TypeScript/issues/53461
+ * @internal @hidden
  */
-export function _polyfill_contextMetadata(target: object): void {
-	if (!Symbol?.metadata || Symbol.metadata in target) return;
+export function _polyfill_metadata(target: object): void {
+	if (Symbol.metadata in target) return;
 
 	Object.defineProperty(target, Symbol.metadata, {
 		enumerable: true,
@@ -106,26 +123,8 @@ export function _polyfill_contextMetadata(target: object): void {
 	});
 }
 
-/**
- * Gets a reference to Symbol.metadata, even on platforms that do not expose it globally (like Node)
- */
-export function symbol_metadata(arg: ClassLike): typeof Symbol.metadata {
-	const symbol_metadata =
-		Symbol.metadata || Object.getOwnPropertySymbols(arg).find(s => s.description == 'Symbol.metadata');
-	_polyfill_contextMetadata(arg);
-	if (!symbol_metadata) {
-		throw new ReferenceError('Could not get a reference to Symbol.metadata');
-	}
-
-	return symbol_metadata as typeof Symbol.metadata;
-}
-
 export function isStatic<T extends Metadata = Metadata>(arg: unknown): arg is Static<T> {
-	return (
-		typeof arg == 'function'
-		&& symbol_metadata(arg as ClassLike) in arg
-		&& isValidMetadata(arg[symbol_metadata(arg as ClassLike)])
-	);
+	return typeof arg == 'function' && Symbol.metadata in arg && isValidMetadata(arg[Symbol.metadata]);
 }
 
 export interface Instance<T extends Metadata = Metadata> {
@@ -177,8 +176,10 @@ export function isCustom(arg: unknown): arg is Custom {
 
 export type Like<T extends Metadata = Metadata> = InstanceLike<T> | StaticLike<T>;
 
-export type Size<T extends TypeLike> = T extends { readonly [Symbol.size]: infer S }
-	? S
-	: T extends primitive.Valid
-		? primitive.Size<T>
-		: number;
+export type Size<T extends TypeLike> = T extends undefined | null
+	? 0
+	: T extends { readonly [Symbol.size]: infer S extends number }
+		? S
+		: T extends primitive.Valid
+			? primitive.Size<T>
+			: number;
