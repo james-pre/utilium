@@ -71,7 +71,7 @@ function _memberLength<T extends Metadata>(
 	length: string | number | undefined,
 	name: string
 ): number {
-	if (length === undefined) return 0;
+	if (length === undefined) return -1;
 	if (typeof length != 'string')
 		return Number.isSafeInteger(length) && length >= 0
 			? length
@@ -173,10 +173,10 @@ export function serialize(instance: unknown): Uint8Array {
 	// for unions we should write members in ascending last modified order, but we don't have that info.
 	for (const [name, { type, length: rawLength, offset }] of members) {
 		const length = _memberLength(instance, rawLength, name);
-		for (let i = 0; i < (length || 1); i++) {
+		for (let i = 0; i < Math.abs(length); i++) {
 			const iOff = offset + sizeof(type) * i;
 
-			let value = length > 0 ? instance[name][i] : instance[name];
+			let value = length != -1 ? instance[name][i] : instance[name];
 			if (typeof value == 'string') {
 				value = value.charCodeAt(0);
 			}
@@ -238,9 +238,9 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 
 	for (const [name, { type, offset, length: rawLength }] of members) {
 		const length = _memberLength(instance, rawLength, name);
-		for (let i = 0; i < (length || 1); i++) {
-			let object = length > 0 ? instance[name] : instance;
-			const key = length > 0 ? i : name,
+		for (let i = 0; i < Math.abs(length); i++) {
+			let object = length != -1 ? instance[name][i] : instance[name];
+			const key = length != -1 ? i : name,
 				iOff = offset + sizeof(type) * i;
 
 			if (typeof instance[name] == 'string') {
@@ -257,7 +257,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 				continue;
 			}
 
-			if (length) object ||= [];
+			if (length && length != -1) object ||= [];
 
 			const fn = `get${capitalize(type)}` as const;
 			if (fn == 'getInt64') {
