@@ -138,7 +138,10 @@ export function struct(options: Partial<Options> = {}) {
 /**
  * Decorates a class member to be serialized
  */
-export function member<I extends Record<string, unknown>>(type: primitive.Valid | ClassLike<I>, length?: number) {
+export function member<I extends Record<string, unknown>>(
+	type: primitive.Valid | ClassLike<I>,
+	length?: number | string
+) {
 	return function <V>(value: V, context: MemberContext): V {
 		let name = context.name;
 		if (typeof name == 'symbol') {
