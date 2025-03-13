@@ -239,7 +239,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 	for (const [name, { type, offset, length: rawLength }] of members) {
 		const length = _memberLength(instance, rawLength, name);
 		for (let i = 0; i < Math.abs(length); i++) {
-			let object = length != -1 ? instance[name][i] : instance[name];
+			let object = length != -1 ? instance[name] : instance;
 			const key = length != -1 ? i : name,
 				iOff = offset + sizeof(type) * i;
 
