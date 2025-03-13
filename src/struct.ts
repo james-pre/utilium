@@ -2,6 +2,7 @@ import { toUint8Array } from './buffer.js';
 import * as primitive from './internal/primitives.js';
 import type {
 	DecoratorContext,
+	Instance,
 	InstanceLike,
 	Member,
 	MemberContext,
@@ -66,7 +67,7 @@ export function align(value: number, alignment: number): number {
  * @param name The name of the array field— only used for errors
  */
 function _memberLength<T extends Metadata>(
-	struct: Static<T>,
+	struct: Instance<T>,
 	length: string | number | undefined,
 	name: string
 ): number {
@@ -86,8 +87,8 @@ function _memberLength<T extends Metadata>(
 }
 
 /** Compute the size of a struct including dynamically sized members */
-function _structSize<T extends Metadata>(this: Static<T>) {
-	const { staticSize, members } = this[symbol_metadata(this)].struct;
+function _structSize<T extends Metadata>(this: Instance<T>) {
+	const { staticSize, members } = this.constructor[symbol_metadata(this.constructor)].struct;
 
 	let size = staticSize;
 
