@@ -65,9 +65,11 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 	if (isStatic(type)) return size as Size<T>;
 
 	for (const member of struct.members.values()) {
-		if (isInstance(member) && member.constructor[Symbol.metadata].struct.isDynamic) {
-			if (struct.isUnion) size = Math.max(size, sizeof(member));
-			else size += sizeof(member);
+		const value = (type as any)[member.name];
+
+		if (isInstance(value) && value.constructor[Symbol.metadata].struct.isDynamic) {
+			if (struct.isUnion) size = Math.max(size, sizeof(value));
+			else size += sizeof(value);
 			continue;
 		}
 
@@ -76,9 +78,7 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 		let subSize = 0;
 
 		for (let i = 0; i < (type as any)[member.length]; i++) {
-			const value = (type as any)[member.name][i];
-
-			subSize += sizeof(isStruct(value) ? value : member.type);
+			subSize += sizeof(isStruct(value[i]) ? value[i] : member.type);
 		}
 
 		if (struct.isUnion) size = Math.max(size, subSize);
