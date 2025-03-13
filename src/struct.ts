@@ -150,7 +150,7 @@ export function struct(options: Partial<Options> = {}) {
 			});
 
 			const memberSize = typeof length == 'string' ? 0 : sizeof(type) * (length || 1);
-			isDynamic ||= typeof length == 'string';
+			isDynamic ||= isStatic(type) ? type[Symbol.metadata].struct.isDynamic : typeof length == 'string';
 			staticSize = options.isUnion ? Math.max(staticSize, memberSize) : staticSize + memberSize;
 			staticSize = align(staticSize, options.align || 1);
 
