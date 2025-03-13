@@ -65,12 +65,24 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 	if (isStatic(type)) return size as Size<T>;
 
 	for (const member of struct.members.values()) {
+		if (isInstance(member) && member.constructor[Symbol.metadata].struct.isDynamic) {
+			if (struct.isUnion) size = Math.max(size, sizeof(member));
+			else size += sizeof(member);
+			continue;
+		}
+
 		if (typeof member.length != 'string') continue;
+
+		let subSize = 0;
+
 		for (let i = 0; i < (type as any)[member.length]; i++) {
 			const value = (type as any)[member.name][i];
 
-			size += sizeof(isStruct(value) ? value : member.type);
+			subSize += sizeof(isStruct(value) ? value : member.type);
 		}
+
+		if (struct.isUnion) size = Math.max(size, subSize);
+		else size += subSize;
 	}
 
 	return size as Size<T>;
@@ -98,6 +110,7 @@ export function offsetof(type: StaticLike | InstanceLike, memberName: string): n
 
 	for (const member of struct.members.values()) {
 		if (member.name == memberName) return offset;
+
 		const value = (type as any)[member.name];
 		offset += sizeof(isStruct(value) ? value : member.type);
 	}
@@ -149,7 +162,11 @@ export function struct(options: Partial<Options> = {}) {
 				decl,
 			});
 
-			const memberSize = typeof length == 'string' ? 0 : sizeof(type) * (length || 1);
+			const memberSize =
+				typeof length == 'string' || (isStatic(type) && type[Symbol.metadata].struct.isDynamic)
+					? 0
+					: sizeof(type) * (length || 1);
+
 			isDynamic ||= isStatic(type) ? type[Symbol.metadata].struct.isDynamic : typeof length == 'string';
 			staticSize = options.isUnion ? Math.max(staticSize, memberSize) : staticSize + memberSize;
 			staticSize = align(staticSize, options.align || 1);
@@ -157,7 +174,13 @@ export function struct(options: Partial<Options> = {}) {
 			_debugLog('define', target.name + '.' + name);
 		}
 
-		context.metadata.struct = { options, members, staticSize, isDynamic } satisfies Metadata;
+		context.metadata.struct = {
+			options,
+			members,
+			staticSize,
+			isDynamic,
+			isUnion: options.isUnion ?? false,
+		} satisfies Metadata;
 
 		return target;
 	};

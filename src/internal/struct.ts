@@ -63,7 +63,12 @@ export interface Metadata {
 	options: Partial<Options>;
 	members: Map<string, Member>;
 	staticSize: number;
+
+	/** Whether the struct is dynamically sized */
 	isDynamic: boolean;
+
+	/** Whether the struct is a union */
+	isUnion: boolean;
 }
 
 type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
