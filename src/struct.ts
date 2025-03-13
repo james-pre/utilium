@@ -44,8 +44,11 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 		return size as Size<T>;
 	}
 
-	// primitive
+	// primitive or character
 	if (typeof type == 'string') {
+		// Single character inside string, since sizeof(string) -> sizeof(string[0]) -> here
+		if (type.length == 1) return 1 as Size<T>;
+
 		primitive.checkValid(type);
 
 		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
