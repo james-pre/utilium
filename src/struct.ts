@@ -21,47 +21,6 @@ import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
 
 /**
- * Gets the size in bytes of a type
- */
-export function sizeof<T extends TypeLike>(type: T): Size<T> {
-	// primitive
-	if (typeof type == 'string') {
-		primitive.checkValid(type);
-
-		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
-	}
-
-	if (isCustom(type)) return type[Symbol.size] as Size<T>;
-
-	checkStruct(type);
-
-	const struct = isStatic(type) ? type : type.constructor;
-
-	return struct[symbol_metadata(struct)].struct.staticSize as Size<T>;
-}
-
-/**
- * Returns the offset (in bytes) of a member in a struct.
- */
-export function offsetof(type: StaticLike | InstanceLike, memberName: string): number {
-	checkStruct(type);
-
-	const struct = isStatic(type) ? type : type.constructor;
-	const metadata = struct[symbol_metadata(struct)].struct;
-
-	const member = metadata.members.get(memberName);
-	if (!member) throw new Error('Struct does not have member: ' + memberName);
-	return member.offset;
-}
-
-/**
- * Aligns a number
- */
-export function align(value: number, alignment: number): number {
-	return Math.ceil(value / alignment) * alignment;
-}
-
-/**
  * Gets the length of an array in a struct
  * @param length The numeric length or the name of the field which has the array length (like __counted_by)
  * @param name The name of the array field— only used for errors
@@ -86,18 +45,56 @@ function _memberLength<T extends Metadata>(
 	return n;
 }
 
-/** Compute the size of a struct including dynamically sized members */
-function _structSize<T extends Metadata>(this: Instance<T>) {
-	const { staticSize, members } = this.constructor[symbol_metadata(this.constructor)].struct;
+/**
+ * Gets the size in bytes of a type
+ */
+export function sizeof<T extends TypeLike>(type: T): Size<T> {
+	// primitive
+	if (typeof type == 'string') {
+		primitive.checkValid(type);
 
-	let size = staticSize;
-
-	for (const [name, { type, length: key }] of members) {
-		if (typeof key != 'string') continue;
-		size += sizeof(type) * _memberLength(this, key, name);
+		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
 	}
 
-	return size;
+	if (isCustom(type)) return type[Symbol.size] as Size<T>;
+
+	checkStruct(type);
+
+	const { struct } = isStatic(type)
+		? type[symbol_metadata(type)]
+		: type.constructor[symbol_metadata(type.constructor)];
+
+	if (isStatic(type)) return struct.staticSize as Size<T>;
+
+	let size = struct.staticSize;
+
+	for (const [name, { type: memberType, length: key }] of struct.members) {
+		if (typeof key != 'string') continue;
+		size += sizeof(memberType) * _memberLength(type, key, name);
+	}
+
+	return size as Size<T>;
+}
+
+/**
+ * Returns the offset (in bytes) of a member in a struct.
+ */
+export function offsetof(type: StaticLike | InstanceLike, memberName: string): number {
+	checkStruct(type);
+
+	const struct = isStatic(type) ? type : type.constructor;
+	const metadata = struct[symbol_metadata(struct)].struct;
+
+	const member = metadata.members.get(memberName);
+	if (!member) throw new Error('Struct does not have member: ' + memberName);
+	return member.offset;
+}
+
+/**
+ * Aligns a number
+ */
+export function align(value: number, alignment: number): number {
+	return Math.ceil(value / alignment) * alignment;
 }
 
 /**
@@ -128,13 +125,6 @@ export function struct(options: Partial<Options> = {}) {
 		}
 
 		context.metadata.struct = { options, members, staticSize } satisfies Metadata;
-
-		context.addInitializer(function (this: any) {
-			Object.defineProperty(this.prototype, Symbol.size, {
-				get: _structSize.bind(this),
-				enumerable: false,
-			});
-		});
 
 		return target;
 	};
