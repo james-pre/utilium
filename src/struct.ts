@@ -92,6 +92,7 @@ function _structSize<T extends Metadata>(this: Static<T>) {
 	let size = staticSize;
 
 	for (const [name, { type, length: key }] of members) {
+		if (typeof key != 'string') continue;
 		size += sizeof(type) * _memberLength(this, key, name);
 	}
 
@@ -168,7 +169,7 @@ export function serialize(instance: unknown): Uint8Array {
 
 	// for unions we should write members in ascending last modified order, but we don't have that info.
 	for (const [name, { type, length: rawLength, offset }] of members) {
-		const length = _memberLength(instance.constructor, rawLength, name);
+		const length = _memberLength(instance, rawLength, name);
 		for (let i = 0; i < (length || 1); i++) {
 			const iOff = offset + sizeof(type) * i;
 
@@ -233,7 +234,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
 	for (const [name, { type, offset, length: rawLength }] of members) {
-		const length = _memberLength(instance.constructor, rawLength, name);
+		const length = _memberLength(instance, rawLength, name);
 		for (let i = 0; i < (length || 1); i++) {
 			let object = length > 0 ? instance[name] : instance;
 			const key = length > 0 ? i : name,
