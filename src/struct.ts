@@ -165,7 +165,7 @@ export function member(type: primitive.Valid | ClassLike, length?: number | stri
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
-	if (isCustom(instance)) return instance[Symbol.serialize]!();
+	if (isCustom(instance) && typeof instance[Symbol.serialize] == 'function') return instance[Symbol.serialize]!();
 
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
@@ -232,7 +232,8 @@ export function serialize(instance: unknown): Uint8Array {
 export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayBufferView) {
 	const buffer = toUint8Array(_buffer);
 
-	if (isCustom(instance)) return instance[Symbol.deserialize]!(buffer);
+	if (isCustom(instance) && typeof instance[Symbol.deserialize] == 'function')
+		return instance[Symbol.deserialize]!(buffer);
 
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
