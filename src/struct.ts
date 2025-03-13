@@ -22,6 +22,7 @@ import {
 	isCustom,
 	isInstance,
 	isStatic,
+	isStruct,
 } from './internal/struct.js';
 import { _throw } from './misc.js';
 import { capitalize } from './string.js';
@@ -46,9 +47,6 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 
 	// primitive or character
 	if (typeof type == 'string') {
-		// Single character inside string, since sizeof(string) -> sizeof(string[0]) -> here
-		if (type.length == 1) return 1 as Size<T>;
-
 		primitive.checkValid(type);
 
 		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
@@ -62,14 +60,16 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 	_polyfill_metadata(constructor);
 	const { struct } = constructor[Symbol.metadata];
 
-	if (isStatic(type)) return struct.staticSize as Size<T>;
-
 	let size = struct.staticSize;
+
+	if (isStatic(type)) return size as Size<T>;
 
 	for (const member of struct.members.values()) {
 		if (typeof member.length != 'string') continue;
 		for (let i = 0; i < (type as any)[member.length]; i++) {
-			size += sizeof((type as any)[member.name][i]);
+			const value = (type as any)[member.name][i];
+
+			size += sizeof(isStruct(value) ? value : member.type);
 		}
 	}
 
@@ -98,7 +98,8 @@ export function offsetof(type: StaticLike | InstanceLike, memberName: string): n
 
 	for (const member of struct.members.values()) {
 		if (member.name == memberName) return offset;
-		offset += sizeof((type as any)[member.name]);
+		const value = (type as any)[member.name];
+		offset += sizeof(isStruct(value) ? value : member.type);
 	}
 
 	throw new Error('Struct does not have member: ' + memberName);
