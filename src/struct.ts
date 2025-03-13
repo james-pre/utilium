@@ -130,7 +130,10 @@ export function struct(options: Partial<Options> = {}) {
 		context.metadata.struct = { options, members, staticSize } satisfies Metadata;
 
 		context.addInitializer(function (this: any) {
-			this[Symbol.size] = _structSize.bind(this);
+			Object.defineProperty(this.prototype, Symbol.size, {
+				get: _structSize.bind(this),
+				enumerable: false,
+			});
 		});
 
 		return target;
