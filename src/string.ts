@@ -20,3 +20,21 @@ export type Join<T extends string[], S extends string = ','> = T extends [
 export type Whitespace = ' ' | '\t';
 
 export type Trim<T extends string> = T extends `${Whitespace}${infer R extends string}` ? Trim<R> : T;
+
+const encoder = new TextEncoder();
+
+/**
+ * Encodes a UTF-8 string into a buffer
+ */
+export function encodeUTF8(input: string): Uint8Array {
+	return encoder.encode(input);
+}
+
+const decoder = new TextDecoder();
+
+/**
+ * Decodes a UTF-8 string from a buffer
+ */
+export function decodeUTF8(input?: Uint8Array): string {
+	return decoder.decode(input);
+}

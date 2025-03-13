@@ -20,9 +20,9 @@ Object.assign(Symbol, {
 	deserialize: Symbol('uDeserialize'),
 });
 
-export type TypeLike = UserDefined | Like | primitive.Valid;
+export type TypeLike = Custom | Like | primitive.Valid;
 
-export type Type = UserDefined | Static | primitive.Typename;
+export type Type = Custom | Static | primitive.Typename;
 
 /**
  * Member initialization data
@@ -31,7 +31,7 @@ export type Type = UserDefined | Static | primitive.Typename;
 export interface MemberInit {
 	name: string;
 	type: string | ClassLike;
-	length?: number;
+	length?: number | string;
 }
 
 /**
@@ -46,14 +46,14 @@ export interface Options {
 export interface Member {
 	type: Type;
 	offset: number;
-	length?: number;
+	length?: number | string;
 }
 
 export interface Metadata {
 	options: Partial<Options>;
 	members: Map<string, Member>;
-	size: number;
 	init?: MemberInit[];
+	staticSize: number;
 }
 
 type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
@@ -161,20 +161,17 @@ export function checkStruct<T extends Metadata = Metadata>(arg: unknown): assert
 	);
 }
 
-export interface UserDefined {
+/**
+ * A "custom" type, which can be used to implement non-builtin size, serialization, and deserialization
+ */
+export interface Custom {
 	readonly [Symbol.size]: number;
-	[Symbol.serialize](): Uint8Array;
-	[Symbol.deserialize](value: Uint8Array): void;
+	[Symbol.serialize]?(): Uint8Array;
+	[Symbol.deserialize]?(value: Uint8Array): void;
 }
 
-export function isUserDefined(arg: unknown): arg is UserDefined {
-	return (
-		typeof arg == 'object'
-		&& arg != null
-		&& Symbol.size in arg
-		&& Symbol.serialize in arg
-		&& Symbol.deserialize in arg
-	);
+export function isCustom(arg: unknown): arg is Custom {
+	return typeof arg == 'object' && arg != null && Symbol.size in arg;
 }
 
 export type Like<T extends Metadata = Metadata> = InstanceLike<T> | StaticLike<T>;
@@ -183,6 +180,4 @@ export type Size<T extends TypeLike> = T extends { readonly [Symbol.size]: infer
 	? S
 	: T extends primitive.Valid
 		? primitive.Size<T>
-		: T extends Like<infer M>
-			? M['size']
-			: number;
+		: number;

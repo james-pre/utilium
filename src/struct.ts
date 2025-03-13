@@ -4,15 +4,17 @@ import type {
 	DecoratorContext,
 	InstanceLike,
 	Member,
+	MemberContext,
 	MemberInit,
 	Metadata,
 	Options,
 	Size,
+	Static,
 	StaticLike,
 	TypeLike,
-	MemberContext,
 } from './internal/struct.js';
-import { checkInstance, checkStruct, isStatic, isUserDefined, symbol_metadata } from './internal/struct.js';
+import { checkInstance, checkStruct, isCustom, isStatic, symbol_metadata } from './internal/struct.js';
+import { _throw } from './misc.js';
 import { capitalize } from './string.js';
 import type { ClassLike } from './types.js';
 export * as Struct from './internal/struct.js';
@@ -28,15 +30,13 @@ export function sizeof<T extends TypeLike>(type: T): Size<T> {
 		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
 	}
 
-	if (isUserDefined(type)) {
-		return type[Symbol.size] as Size<T>;
-	}
+	if (isCustom(type)) return type[Symbol.size] as Size<T>;
 
 	checkStruct(type);
 
 	const struct = isStatic(type) ? type : type.constructor;
 
-	return struct[symbol_metadata(struct)].struct.size as Size<T>;
+	return struct[symbol_metadata(struct)].struct.staticSize as Size<T>;
 }
 
 /**
@@ -61,6 +61,44 @@ export function align(value: number, alignment: number): number {
 }
 
 /**
+ * Gets the length of an array in a struct
+ * @param length The numeric length or the name of the field which has the array length (like __counted_by)
+ * @param name The name of the array field— only used for errors
+ */
+function _memberLength<T extends Metadata>(
+	struct: Static<T>,
+	length: string | number | undefined,
+	name: string
+): number {
+	if (length === undefined) return 1;
+	if (typeof length != 'string')
+		return Number.isSafeInteger(length) && length >= 0
+			? length
+			: _throw(new Error('Array lengths must be natural numbers'));
+
+	if (!(length in struct)) throw new Error(`Can not use non-existent member to count ${name}: ` + length);
+
+	const n = (struct as any)[length];
+
+	if (typeof n != 'number') throw new Error(`Can not use "${name}" to count ${length}`);
+
+	return n;
+}
+
+/** Compute the size of a struct including dynamically sized members */
+function _structSize<T extends Metadata>(this: Static<T>) {
+	const { staticSize, members } = this[symbol_metadata(this)].struct;
+
+	let size = staticSize;
+
+	for (const [name, { type, length: key }] of members) {
+		size += sizeof(type) * _memberLength(this, key, name);
+	}
+
+	return size;
+}
+
+/**
  * Decorates a class as a struct
  */
 export function struct(options: Partial<Options> = {}) {
@@ -72,23 +110,27 @@ export function struct(options: Partial<Options> = {}) {
 		context.metadata.struct ??= {};
 		context.metadata.struct.init ??= [];
 
-		let size = 0;
+		let staticSize = 0;
 		const members = new Map<string, Member>();
 		for (const { name, type, length } of context.metadata.struct.init) {
-			if (!primitive.isValid(type) && !isStatic(type)) {
-				throw new TypeError('Not a valid type: ' + type);
-			}
+			if (!primitive.isValid(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type);
+
 			members.set(name, {
-				offset: options.isUnion ? 0 : size,
+				offset: options.isUnion ? 0 : staticSize,
 				type: primitive.isValid(type) ? primitive.normalize(type) : type,
 				length,
 			});
-			const memberSize = sizeof(type) * (length || 1);
-			size = options.isUnion ? Math.max(size, memberSize) : size + memberSize;
-			size = align(size, options.align || 1);
+			const memberSize = typeof length == 'string' ? 0 : sizeof(type) * (length || 1);
+			staticSize = options.isUnion ? Math.max(staticSize, memberSize) : staticSize + memberSize;
+			staticSize = align(staticSize, options.align || 1);
 		}
 
-		context.metadata.struct = { options, members, size } satisfies Metadata;
+		context.metadata.struct = { options, members, staticSize } satisfies Metadata;
+
+		context.addInitializer(function (this: any) {
+			this[Symbol.size] = _structSize.bind(this);
+		});
+
 		return target;
 	};
 }
@@ -96,7 +138,7 @@ export function struct(options: Partial<Options> = {}) {
 /**
  * Decorates a class member to be serialized
  */
-export function member(type: primitive.Valid | ClassLike, length?: number) {
+export function member<I extends Record<string, unknown>>(type: primitive.Valid | ClassLike<I>, length?: number) {
 	return function <V>(value: V, context: MemberContext): V {
 		let name = context.name;
 		if (typeof name == 'symbol') {
@@ -118,8 +160,6 @@ export function member(type: primitive.Valid | ClassLike, length?: number) {
  * Serializes a struct into a Uint8Array
  */
 export function serialize(instance: unknown): Uint8Array {
-	if (isUserDefined(instance)) return instance[Symbol.serialize]();
-
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
@@ -127,11 +167,12 @@ export function serialize(instance: unknown): Uint8Array {
 	const view = new DataView(buffer.buffer);
 
 	// for unions we should write members in ascending last modified order, but we don't have that info.
-	for (const [name, { type, length, offset }] of members) {
-		for (let i = 0; i < (length || 1); i++) {
+	for (const [name, { type, length: rawLength, offset }] of members) {
+		const length = _memberLength(instance.constructor, rawLength, name);
+		for (let i = 0; i < length; i++) {
 			const iOff = offset + sizeof(type) * i;
 
-			let value = length! > 0 ? instance[name][i] : instance[name];
+			let value = length > 0 ? instance[name][i] : instance[name];
 			if (typeof value == 'string') {
 				value = value.charCodeAt(0);
 			}
@@ -184,17 +225,18 @@ export function serialize(instance: unknown): Uint8Array {
 export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayBufferView) {
 	const buffer = toUint8Array(_buffer);
 
-	if (isUserDefined(instance)) return instance[Symbol.deserialize](buffer);
+	if (isCustom(instance)) return instance[Symbol.deserialize]!(buffer);
 
 	checkInstance(instance);
 	const { options, members } = instance.constructor[symbol_metadata(instance.constructor)].struct;
 
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-	for (const [name, { type, offset, length }] of members) {
-		for (let i = 0; i < (length || 1); i++) {
-			let object = length! > 0 ? instance[name] : instance;
-			const key = length! > 0 ? i : name,
+	for (const [name, { type, offset, length: rawLength }] of members) {
+		const length = _memberLength(instance.constructor, rawLength, name);
+		for (let i = 0; i < length; i++) {
+			let object = length > 0 ? instance[name] : instance;
+			const key = length > 0 ? i : name,
 				iOff = offset + sizeof(type) * i;
 
 			if (typeof instance[name] == 'string') {
@@ -211,9 +253,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 				continue;
 			}
 
-			if (length! > 0) {
-				object ||= [];
-			}
+			if (length) object ||= [];
 
 			const fn = `get${capitalize(type)}` as const;
 			if (fn == 'getInt64') {
@@ -251,14 +291,14 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 }
 
 function _member<T extends primitive.Valid>(type: T) {
-	function _structMemberDecorator<const V>(length: number): (value: V, context: MemberContext) => V;
+	function _structMemberDecorator<const V>(length: number | string): (value: V, context: MemberContext) => V;
 	function _structMemberDecorator<const V>(value: V, context: MemberContext): V;
 	function _structMemberDecorator<const V>(
-		valueOrLength: V | number,
+		valueOrLength: V | number | string,
 		context?: MemberContext
 	): V | ((value: V, context: MemberContext) => V) {
-		if (typeof valueOrLength == 'number') {
-			return member(type, valueOrLength);
+		if (typeof valueOrLength == 'number' || typeof valueOrLength == 'string') {
+			return member(type, valueOrLength as number);
 		}
 
 		return member(type)(valueOrLength, context!);

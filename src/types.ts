@@ -233,6 +233,8 @@ export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
 export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
 
+export type Concrete<T extends ClassLike> = Pick<T, keyof T> & (new (...args: any[]) => InstanceType<T>);
+
 /**
  * Converts a union to an intersection
  * @see https://stackoverflow.com/a/55128956/17637456
