@@ -70,7 +70,7 @@ function _memberLength<T extends Metadata>(
 	length: string | number | undefined,
 	name: string
 ): number {
-	if (length === undefined) return 1;
+	if (length === undefined) return 0;
 	if (typeof length != 'string')
 		return Number.isSafeInteger(length) && length >= 0
 			? length
@@ -169,7 +169,7 @@ export function serialize(instance: unknown): Uint8Array {
 	// for unions we should write members in ascending last modified order, but we don't have that info.
 	for (const [name, { type, length: rawLength, offset }] of members) {
 		const length = _memberLength(instance.constructor, rawLength, name);
-		for (let i = 0; i < length; i++) {
+		for (let i = 0; i < (length || 1); i++) {
 			const iOff = offset + sizeof(type) * i;
 
 			let value = length > 0 ? instance[name][i] : instance[name];
@@ -234,7 +234,7 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 
 	for (const [name, { type, offset, length: rawLength }] of members) {
 		const length = _memberLength(instance.constructor, rawLength, name);
-		for (let i = 0; i < length; i++) {
+		for (let i = 0; i < (length || 1); i++) {
 			let object = length > 0 ? instance[name] : instance;
 			const key = length > 0 ? i : name,
 				iOff = offset + sizeof(type) * i;
