@@ -3,13 +3,8 @@ import type * as primitive from './primitives.js';
 
 declare global {
 	interface SymbolConstructor {
-		/** User-defined size */
 		readonly size: unique symbol;
-
-		/** User-defined serialization */
 		readonly serialize: unique symbol;
-
-		/** User-defined deserialization */
 		readonly deserialize: unique symbol;
 	}
 }
@@ -102,6 +97,7 @@ export interface Static<T extends Metadata = Metadata> {
 
 export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
 	[Symbol.metadata]?: _DecoratorMetadata<T> | null;
+	new (): unknown;
 }
 
 export function isValidMetadata<T extends Metadata = Metadata>(

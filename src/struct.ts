@@ -318,8 +318,12 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 			let object = length != -1 ? instance[member.name] : instance;
 			const key = length != -1 ? i : member.name;
 
+			const isNullish = object[key] === null || object[key] === undefined;
+
+			const needsAllocation = isNullish && isStatic(member.type) && member.type[Symbol.metadata].struct.isDynamic;
+
 			offset = nextOffset;
-			if (!isInstance(object[key])) nextOffset += sizeof(member.type);
+			if (!isInstance(object[key]) && !needsAllocation) nextOffset += sizeof(member.type);
 
 			if (typeof instance[member.name] == 'string') {
 				instance[member.name] =
@@ -330,7 +334,8 @@ export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayB
 			}
 
 			if (!primitive.isType(member.type)) {
-				if (object[key] === null || object[key] === undefined) continue;
+				if (needsAllocation && isStatic(member.type)) object[key] ??= new member.type();
+				else if (isNullish) continue;
 
 				deserialize(object[key], new Uint8Array(buffer.subarray(offset)));
 				nextOffset += sizeof(object[key]);
