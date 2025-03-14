@@ -38,3 +38,19 @@ const decoder = new TextDecoder();
 export function decodeUTF8(input?: Uint8Array): string {
 	return decoder.decode(input);
 }
+
+export function encodeASCII(input: string): Uint8Array {
+	const data = new Uint8Array(input.length);
+	for (let i = 0; i < input.length; i++) {
+		data[i] = input.charCodeAt(i);
+	}
+	return data;
+}
+
+export function decodeASCII(input: Uint8Array): string {
+	let output = '';
+	for (let i = 0; i < input.length; i++) {
+		output += String.fromCharCode(input[i]);
+	}
+	return output;
+}
