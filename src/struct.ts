@@ -1,8 +1,11 @@
-import { toUint8Array } from './buffer.js';
+import type { ArrayBufferViewConstructor } from './buffer.js';
 import { _debugLog } from './debugging.js';
 import * as primitive from './internal/primitives.js';
 import type {
+	AccessorDecorator,
 	DecoratorContext,
+	DecoratorResult,
+	DecoratorTarget,
 	Instance,
 	InstanceLike,
 	Member,
@@ -16,7 +19,6 @@ import type {
 } from './internal/struct.js';
 import {
 	_polyfill_metadata,
-	checkInstance,
 	checkStruct,
 	initMetadata,
 	isCustom,
@@ -118,6 +120,14 @@ export function offsetof(type: StaticLike | InstanceLike, memberName: string): n
 	throw new Error('Struct does not have member: ' + memberName);
 }
 
+function _toDecl(init: MemberInit): string {
+	let decl = `${typeof init.type == 'string' ? init.type : init.type.name} ${init.name}`;
+
+	if (init.length !== undefined) decl += `[${init.length}]`;
+
+	return decl;
+}
+
 /**
  * Aligns a number
  */
@@ -139,8 +149,6 @@ export function struct(options: Partial<Options> = {}) {
 			isDynamic = false;
 
 		for (const { name, type, length } of initMetadata(context)) {
-			if (!primitive.isValid(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type);
-
 			if (typeof length == 'string') {
 				const countedBy = members.get(length);
 
@@ -154,13 +162,15 @@ export function struct(options: Partial<Options> = {}) {
 
 			if (length !== undefined) decl += `[${length}]`;
 
-			members.set(name, {
+			const member = {
 				name,
-				staticOffset: options.isUnion ? 0 : staticSize,
+				staticOffset: options.isUnion ? 0 : isDynamic ? -1 : staticSize,
 				type: primitive.isValid(type) ? primitive.normalize(type) : type,
 				length,
 				decl,
-			});
+			};
+
+			members.set(name, member);
 
 			const memberSize =
 				typeof length == 'string' || (isStatic(type) && type[Symbol.metadata].struct.isDynamic)
@@ -186,11 +196,98 @@ export function struct(options: Partial<Options> = {}) {
 	};
 }
 
+interface View<T extends ArrayBufferLike = ArrayBuffer> {
+	buffer: T;
+	byteOffset: number;
+	byteLength: number;
+}
+
+function _initView<T extends ArrayBufferLike = ArrayBuffer>(
+	view: View<T>,
+	buffer?: T | ArrayBufferView<T> | ArrayLike<number>,
+	byteOffset?: number,
+	byteLength?: number
+) {
+	if (
+		!buffer
+		|| buffer instanceof ArrayBuffer
+		|| (globalThis.SharedArrayBuffer && buffer instanceof globalThis.SharedArrayBuffer)
+	) {
+		const { staticSize = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {};
+		view.buffer = buffer ?? (new ArrayBuffer(staticSize) as T);
+		view.byteOffset = byteOffset ?? 0;
+		view.byteLength = byteLength ?? staticSize;
+		return;
+	}
+
+	if (ArrayBuffer.isView(buffer)) {
+		view.buffer = buffer.buffer;
+		view.byteOffset = buffer.byteOffset;
+		view.byteLength = buffer.byteLength;
+		return;
+	}
+
+	const array = buffer as ArrayLike<number>;
+
+	view.buffer = new ArrayBuffer(array.length) as T;
+	view.byteOffset = 0;
+	view.byteLength = array.length;
+
+	const data = new Uint8Array(view.buffer);
+	for (let i = 0; i < array.length; i++) {
+		data[i] = array[i];
+	}
+}
+
+export class StructView implements ArrayBufferView {
+	public readonly buffer!: ArrayBufferLike;
+	public readonly byteOffset!: number;
+	public readonly byteLength!: number;
+
+	public constructor(
+		buffer?: ArrayBufferLike | ArrayBufferView | ArrayLike<number>,
+		byteOffset?: number,
+		byteLength?: number
+	) {
+		_initView(this, buffer, byteOffset, byteLength);
+	}
+}
+
+export class ArrayView {
+	public constructor(
+		public readonly buffer: ArrayBufferLike,
+		public readonly byteOffset: number,
+		public readonly length: number
+	) {}
+}
+
+/** Mixin */
+export function _struct<T extends ClassLike>(base: T): StaticLike & T {
+	// @ts-expect-error 2545
+	abstract class __struct__ extends base {
+		public readonly buffer!: ArrayBufferLike;
+		public readonly byteOffset!: number;
+		public readonly byteLength!: number;
+
+		public constructor(
+			buffer?: ArrayBufferLike | ArrayBufferView | ArrayLike<number>,
+			byteOffset?: number,
+			byteLength?: number
+		) {
+			super();
+
+			_initView(this, buffer, byteOffset, byteLength);
+		}
+	}
+
+	return __struct__;
+}
+
 /**
  * Decorates a class member to be serialized
  */
-export function member(type: primitive.Valid | ClassLike, length?: number | string) {
-	return function <V>(value: V, context: MemberContext): V {
+export function member<V>(type: primitive.Valid | StaticLike, length?: number | string) {
+	return function (value: DecoratorTarget<V>, context: MemberContext): DecoratorResult<V> {
 		let name = context.name;
 		if (typeof name == 'symbol') {
 			console.warn('Symbol used for struct member name will be coerced to string: ' + name.toString());
@@ -199,199 +296,180 @@ export function member(type: primitive.Valid | ClassLike, length?: number | stri
 
 		if (!name) throw new ReferenceError('Invalid name for struct member');
 
-		initMetadata(context).push({ name, type, length } satisfies MemberInit);
-		return value;
+		if (!primitive.isValid(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type);
+
+		const init = {
+			name,
+			type: primitive.isValid(type) ? primitive.normalize(type) : type,
+			length,
+		} satisfies MemberInit;
+
+		initMetadata(context).push(init);
+
+		if (context.kind != 'accessor') throw new Error('Member must be an accessor');
+
+		return {
+			get(this: Instance): V {
+				return _get(this, init) as V;
+			},
+			set(this: Instance, value: V) {
+				return _set(this, init, value);
+			},
+		};
 	};
 }
 
 /** Gets the length of a member */
-function _memberLength<T extends Metadata>(instance: Instance<T>, member: Member): number {
-	if (member.length === undefined) return -1;
-	if (typeof member.length == 'string') return (instance as any)[member.length];
-	return Number.isSafeInteger(member.length) && member.length >= 0
-		? member.length
+function _memberLength<T extends Metadata>(instance: Instance<T>, length?: number | string): number {
+	if (length === undefined) return -1;
+	if (typeof length == 'string') return instance[length];
+	return Number.isSafeInteger(length) && length >= 0
+		? length
 		: _throw(new Error('Array lengths must be natural numbers'));
 }
 
-/**
- * Serializes a struct into a Uint8Array
- */
-export function serialize(instance: unknown): Uint8Array {
-	if (isCustom(instance) && typeof instance[Symbol.serialize] == 'function') return instance[Symbol.serialize]!();
+// temporary
+const __options__ = { bigEndian: false };
 
-	checkInstance(instance);
-	_polyfill_metadata(instance.constructor);
-	const { options, members } = instance.constructor[Symbol.metadata].struct;
+function _set(instance: Instance, init: MemberInit, value: any, index?: number) {
+	const { name, type, length: rawLength } = init;
+	const length = _memberLength(instance, rawLength);
+	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
 
-	const size = sizeof(instance);
-	const buffer = new Uint8Array(size);
-	const view = new DataView(buffer.buffer);
+	_debugLog('\t', _toDecl(init));
 
-	_debugLog('serialize', instance.constructor.name);
-
-	let offset = 0,
-		nextOffset = 0;
-
-	// for unions we should write members in ascending last modified order, but we don't have that info.
-	for (const member of members.values()) {
-		const length = _memberLength(instance, member);
-
-		_debugLog('\t', member.decl);
-
-		for (let i = 0; i < Math.abs(length); i++) {
-			let value = length != -1 ? instance[member.name][i] : instance[member.name];
-			if (typeof value == 'string') {
-				value = value.charCodeAt(0);
-			}
-
-			offset = nextOffset;
-			nextOffset += isInstance(value) ? sizeof(value) : sizeof(member.type);
-
-			if (!primitive.isType(member.type)) {
-				buffer.set(value ? serialize(value) : new Uint8Array(sizeof(member.type)), offset);
-				continue;
-			}
-
-			const fn = `set${capitalize(member.type)}` as const;
-
-			if (fn == 'setInt64') {
-				view.setBigInt64(offset, BigInt(value), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'setUint64') {
-				view.setBigUint64(offset, BigInt(value), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'setInt128') {
-				view.setBigUint64(offset + (!options.bigEndian ? 0 : 8), value & primitive.mask64, !options.bigEndian);
-				view.setBigInt64(offset + (!options.bigEndian ? 8 : 0), value >> BigInt(64), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'setUint128') {
-				view.setBigUint64(offset + (!options.bigEndian ? 0 : 8), value & primitive.mask64, !options.bigEndian);
-				view.setBigUint64(offset + (!options.bigEndian ? 8 : 0), value >> BigInt(64), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'setFloat128') {
-				view.setFloat64(offset + (!options.bigEndian ? 0 : 8), Number(value), !options.bigEndian);
-				view.setBigUint64(offset + (!options.bigEndian ? 8 : 0), BigInt(0), !options.bigEndian);
-				continue;
-			}
-
-			view[fn](offset, Number(value), !options.bigEndian);
-		}
+	if (length && length != -1 && typeof index != 'number') {
+		for (let i = 0; i < length; i++) _set(instance, init, value, i);
+		return;
 	}
 
-	return buffer;
+	const offset = offsetof(instance, name) + (index ?? 0) * sizeof(type);
+
+	if (typeof value == 'string') {
+		value = value.charCodeAt(0);
+	}
+
+	if (!primitive.isType(type)) {
+		if (!isInstance(value)) return _debugLog(`Tried to set "${name}" to a non-instance value`);
+
+		return;
+	}
+
+	const fn = `set${capitalize(type)}` as const;
+
+	if (fn == 'setInt64') {
+		view.setBigInt64(offset, BigInt(value), !__options__.bigEndian);
+		return;
+	}
+
+	if (fn == 'setUint64') {
+		view.setBigUint64(offset, BigInt(value), !__options__.bigEndian);
+		return;
+	}
+
+	if (fn == 'setInt128') {
+		view.setBigUint64(offset + (!__options__.bigEndian ? 0 : 8), value & primitive.mask64, !__options__.bigEndian);
+		view.setBigInt64(offset + (!__options__.bigEndian ? 8 : 0), value >> BigInt(64), !__options__.bigEndian);
+		return;
+	}
+
+	if (fn == 'setUint128') {
+		view.setBigUint64(offset + (!__options__.bigEndian ? 0 : 8), value & primitive.mask64, !__options__.bigEndian);
+		view.setBigUint64(offset + (!__options__.bigEndian ? 8 : 0), value >> BigInt(64), !__options__.bigEndian);
+		return;
+	}
+
+	if (fn == 'setFloat128') {
+		view.setFloat64(offset + (!__options__.bigEndian ? 0 : 8), Number(value), !__options__.bigEndian);
+		view.setBigUint64(offset + (!__options__.bigEndian ? 8 : 0), BigInt(0), !__options__.bigEndian);
+		return;
+	}
+
+	view[fn](offset, Number(value), !__options__.bigEndian);
 }
 
-/**
- * Deserializes a struct from a Uint8Array
- */
-export function deserialize(instance: unknown, _buffer: ArrayBufferLike | ArrayBufferView) {
-	const buffer = toUint8Array(_buffer);
+function _get(instance: Instance, init: MemberInit, index?: number) {
+	const { name, type, length: rawLength } = init;
+	const length = _memberLength(instance, rawLength);
 
-	if (isCustom(instance) && typeof instance[Symbol.deserialize] == 'function')
-		return instance[Symbol.deserialize]!(buffer);
+	// We need to proxy arrays
+	if (length && length != -1 && typeof index != 'number') {
+		const jsName = primitive.isType(type) && primitive.jsName(type);
 
-	checkInstance(instance);
-	_polyfill_metadata(instance.constructor);
-	const { options, members } = instance.constructor[Symbol.metadata].struct;
-
-	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-
-	_debugLog('deserialize', instance.constructor.name);
-
-	let offset = 0,
-		nextOffset = 0;
-
-	for (const member of members.values()) {
-		const length = _memberLength(instance, member);
-
-		_debugLog('\t', member.decl);
-
-		for (let i = 0; i < Math.abs(length); i++) {
-			let object = length != -1 ? instance[member.name] : instance;
-			const key = length != -1 ? i : member.name;
-
-			const isNullish = object[key] === null || object[key] === undefined;
-
-			const needsAllocation = isNullish && isStatic(member.type) && member.type[Symbol.metadata].struct.isDynamic;
-
-			offset = nextOffset;
-			if (!isInstance(object[key]) && !needsAllocation) nextOffset += sizeof(member.type);
-
-			if (typeof instance[member.name] == 'string') {
-				instance[member.name] =
-					instance[member.name].slice(0, i)
-					+ String.fromCharCode(view.getUint8(offset))
-					+ instance[member.name].slice(i + 1);
-				continue;
-			}
-
-			if (!primitive.isType(member.type)) {
-				if (needsAllocation && isStatic(member.type)) object[key] ??= new member.type();
-				else if (isNullish) continue;
-
-				deserialize(object[key], new Uint8Array(buffer.subarray(offset)));
-				nextOffset += sizeof(object[key]);
-				continue;
-			}
-
-			if (length && length != -1) object ||= [];
-
-			const fn = `get${capitalize(member.type)}` as const;
-			if (fn == 'getInt64') {
-				object[key] = view.getBigInt64(offset, !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'getUint64') {
-				object[key] = view.getBigUint64(offset, !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'getInt128') {
-				object[key] =
-					(view.getBigInt64(offset + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64))
-					| view.getBigUint64(offset + (!options.bigEndian ? 0 : 8), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'getUint128') {
-				object[key] =
-					(view.getBigUint64(offset + (!options.bigEndian ? 8 : 0), !options.bigEndian) << BigInt(64))
-					| view.getBigUint64(offset + (!options.bigEndian ? 0 : 8), !options.bigEndian);
-				continue;
-			}
-
-			if (fn == 'getFloat128') {
-				object[key] = view.getFloat64(offset + (!options.bigEndian ? 0 : 8), !options.bigEndian);
-				continue;
-			}
-
-			object[key] = view[fn](offset, !options.bigEndian);
+		if (jsName) {
+			const ctor = globalThis[`${jsName}Array`] as ArrayBufferViewConstructor; // cast otherwise TS expects 0-1 arguments
+			return new ctor(instance.buffer, instance.byteOffset, length);
 		}
+
+		return new Proxy(
+			{
+				length,
+			},
+			{
+				get(target, index) {
+					if (index in target) return target[index as keyof typeof target];
+					const i = parseInt(index.toString());
+					if (!Number.isSafeInteger(i)) throw new Error('Invalid index: ' + index.toString());
+					return _get(instance, init, i);
+				},
+				set(target, index, value) {
+					if (index in target) {
+						target[index as keyof typeof target] = value;
+						return true;
+					}
+
+					const i = parseInt(index.toString());
+					if (!Number.isSafeInteger(i)) throw new Error('Invalid index: ' + index.toString());
+					_set(instance, init, i, value);
+					return true;
+				},
+			}
+		);
 	}
+
+	const offset = offsetof(instance, name) + (index ?? 0) * sizeof(type);
+
+	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
+
+	_debugLog('\t', _toDecl(init));
+
+	if (!primitive.isType(type)) {
+		return new type(instance.buffer, offset, sizeof(type));
+	}
+
+	if (type == 'int128') {
+		return (
+			(view.getBigInt64(offset + (!__options__.bigEndian ? 8 : 0), !__options__.bigEndian) << BigInt(64))
+			| view.getBigUint64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian)
+		);
+	}
+
+	if (type == 'uint128') {
+		return (
+			(view.getBigUint64(offset + (!__options__.bigEndian ? 8 : 0), !__options__.bigEndian) << BigInt(64))
+			| view.getBigUint64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian)
+		);
+	}
+
+	if (type == 'float128') {
+		return view.getFloat64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian);
+	}
+
+	return view[`get${primitive.jsName(type)}` as const](offset, !__options__.bigEndian);
 }
 
 function _member<T extends primitive.Valid>(type: T) {
-	function _structMemberDecorator<const V>(length: number | string): (value: V, context: MemberContext) => V;
-	function _structMemberDecorator<const V>(value: V, context: MemberContext): V;
-	function _structMemberDecorator<const V>(
-		valueOrLength: V | number | string,
+	function _structMemberDecorator<V>(length: number | string): AccessorDecorator<V>;
+	function _structMemberDecorator<V>(value: DecoratorTarget<V>, context: MemberContext): DecoratorResult<V>;
+	function _structMemberDecorator<V>(
+		valueOrLength: DecoratorTarget<V> | number | string,
 		context?: MemberContext
-	): V | ((value: V, context: MemberContext) => V) {
-		if (typeof valueOrLength == 'number' || typeof valueOrLength == 'string') {
-			return member(type, valueOrLength as number);
-		}
-
-		return member(type)(valueOrLength, context!);
+	): AccessorDecorator<V> | DecoratorResult<V> {
+		return typeof valueOrLength == 'number' || typeof valueOrLength == 'string'
+			? member<V>(type, valueOrLength)
+			: member<V>(type)(valueOrLength, context!);
 	}
+
 	return _structMemberDecorator;
 }
 

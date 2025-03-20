@@ -44,6 +44,25 @@ export function normalize<T extends Valid>(type: T): Normalize<T> {
 	return (type == 'char' ? 'uint8' : type.toLowerCase()) as Normalize<T>;
 }
 
+const _toJS = {
+	int8: 'Int8',
+	uint8: 'Uint8',
+	int16: 'Int16',
+	uint16: 'Uint16',
+	int32: 'Int32',
+	uint32: 'Uint32',
+	int64: 'BigInt64',
+	uint64: 'BigUint64',
+	float32: 'Float32',
+	float64: 'Float64',
+} as const;
+
+export type JSName<T extends Typename> = T extends keyof typeof _toJS ? (typeof _toJS)[T] : false;
+
+export function jsName<T extends Typename>(type: T): JSName<T> {
+	return (type in _toJS ? _toJS[type as keyof typeof _toJS] : false) as JSName<T>;
+}
+
 export function isType(type: { toString(): string }): type is Typename {
 	return regex.test(type.toString());
 }

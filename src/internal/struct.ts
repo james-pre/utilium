@@ -31,7 +31,7 @@ export type Type = Custom | Static | primitive.Typename;
  */
 export interface MemberInit {
 	name: string;
-	type: string | ClassLike;
+	type: primitive.Typename | Static;
 	length?: number | string;
 }
 
@@ -87,17 +87,21 @@ export function initMetadata(context: DecoratorContext): MemberInit[] {
 	return context.metadata.structInit;
 }
 
-export type MemberContext = ClassMemberDecoratorContext & DecoratorContext;
+export type MemberContext = ClassAccessorDecoratorContext & DecoratorContext;
 
 export interface Static<T extends Metadata = Metadata> {
 	[Symbol.metadata]: { struct: T };
-	new (): Instance<T>;
-	prototype: Instance<T>;
+	readonly prototype: Instance<T>;
+	new <TArrayBuffer extends ArrayBufferLike = ArrayBuffer>(
+		buffer: TArrayBuffer,
+		byteOffset?: number,
+		length?: number
+	): Instance<T> & ArrayBufferView<TArrayBuffer>;
+	new (array?: ArrayLike<number> | ArrayBuffer): Instance<T>;
 }
 
 export interface StaticLike<T extends Metadata = Metadata> extends ClassLike {
 	[Symbol.metadata]?: _DecoratorMetadata<T> | null;
-	new (): unknown;
 }
 
 export function isValidMetadata<T extends Metadata = Metadata>(
@@ -128,7 +132,7 @@ export function isStatic<T extends Metadata = Metadata>(arg: unknown): arg is St
 	return typeof arg == 'function' && Symbol.metadata in arg && isValidMetadata(arg[Symbol.metadata]);
 }
 
-export interface Instance<T extends Metadata = Metadata> {
+export interface Instance<T extends Metadata = Metadata> extends ArrayBufferView, Record<PropertyKey, any> {
 	constructor: Static<T>;
 }
 
@@ -184,3 +188,12 @@ export type Size<T extends TypeLike> = T extends undefined | null
 		: T extends primitive.Valid
 			? primitive.Size<T>
 			: number;
+
+export type AccessorDecorator<V> = (
+	value: ClassAccessorDecoratorTarget<any, V>,
+	context: MemberContext
+) => ClassAccessorDecoratorResult<any, V>;
+
+export type DecoratorTarget<V> = ClassAccessorDecoratorTarget<any, V>;
+
+export type DecoratorResult<V> = ClassAccessorDecoratorResult<any, V>;
