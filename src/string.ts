@@ -36,7 +36,13 @@ const decoder = new TextDecoder();
  * Decodes a UTF-8 string from a buffer
  */
 export function decodeUTF8(input?: Uint8Array): string {
-	return decoder.decode(input);
+	if (!input) return '';
+
+	if (input.buffer instanceof ArrayBuffer && !input.buffer.resizable) return decoder.decode(input);
+
+	const buffer = new Uint8Array(input.byteLength);
+	buffer.set(input);
+	return decoder.decode(buffer);
 }
 
 export function encodeASCII(input: string): Uint8Array {
