@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { join } from 'path';
 import { encodeASCII } from '../src/string.js';
 import { member, struct, StructView, types as t } from '../src/struct.js';
+
 enum Some {
 	thing = 1,
 	one = 2,
