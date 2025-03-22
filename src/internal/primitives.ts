@@ -1,5 +1,4 @@
-import { initView, type ArrayBufferViewConstructor } from '../buffer.js';
-import type { Mutable } from '../objects.js';
+import type { ArrayBufferViewConstructor } from '../buffer.js';
 import { capitalize } from '../string.js';
 import type { UnionToTuple } from '../types.js';
 
@@ -23,41 +22,6 @@ export function isType<T = any>(type: unknown): type is Type<T> {
 		&& typeof type.get == 'function'
 		&& typeof type.set == 'function'
 	);
-}
-
-const mask64 = BigInt('0xffffffffffffffff');
-
-export function PrimitiveArray<T extends Type>(type: T) {
-	return class PrimitiveArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer> extends Array {
-		declare public readonly buffer: TArrayBuffer;
-		declare public readonly byteOffset: number;
-		declare public readonly byteLength: number;
-
-		public constructor(
-			buffer?: TArrayBuffer | ArrayBufferView<TArrayBuffer> | ArrayLike<number> | number,
-			byteOffset?: number,
-			byteLength?: number
-		) {
-			const length = typeof buffer == 'number' ? buffer : (byteLength ?? type.size) / type.size;
-
-			if (!Number.isSafeInteger(length)) throw new Error('Invalid array length: ' + length);
-
-			super(length);
-
-			if (typeof buffer != 'number') initView(this, buffer, byteOffset, byteLength);
-			else {
-				this.buffer = new ArrayBuffer(buffer * type.size) as TArrayBuffer;
-				this.byteOffset = 0;
-				this.byteLength = buffer * type.size;
-			}
-
-			const view = new DataView(this.buffer, this.byteOffset, this.byteLength);
-
-			for (let i = 0; i < length; i++) {
-				this[i] = type.get(view, i * type.size, false);
-			}
-		}
-	};
 }
 
 export const types = {
@@ -125,30 +89,6 @@ export const types = {
 		set: (view, offset, le, value) => view.setBigUint64(offset, value, le),
 	},
 
-	int128: {
-		name: 'int128',
-		size: 16,
-		array: {} as ArrayBufferViewConstructor,
-		get: (view, offset, le) =>
-			(view.getBigInt64(offset + (le ? 8 : 0), le) << BigInt(64)) | view.getBigUint64(offset + (le ? 0 : 8), le),
-		set: (view, offset, le, value) => {
-			view.setBigUint64(offset + (le ? 0 : 8), BigInt(value) & mask64, le);
-			view.setBigInt64(offset + (le ? 8 : 0), BigInt(value) >> BigInt(64), le);
-		},
-	},
-
-	uint128: {
-		name: 'uint128',
-		size: 16,
-		array: {} as ArrayBufferViewConstructor,
-		get: (view, offset, le) =>
-			(view.getBigUint64(offset + (le ? 8 : 0), le) << BigInt(64)) | view.getBigUint64(offset + (le ? 0 : 8), le),
-		set: (view, offset, le, value) => {
-			view.setBigUint64(offset + (le ? 0 : 8), BigInt(value) & mask64, le);
-			view.setBigUint64(offset + (le ? 8 : 0), BigInt(value) >> BigInt(64), le);
-		},
-	},
-
 	float32: {
 		name: 'float32',
 		size: 4,
@@ -164,24 +104,7 @@ export const types = {
 		get: (view, offset, le) => view.getFloat64(offset, le),
 		set: (view, offset, le, value) => view.setFloat64(offset, value, le),
 	},
-
-	float128: {
-		name: 'float128',
-		size: 16,
-		array: {} as ArrayBufferViewConstructor,
-		get: (view, offset, le) => view.getFloat64(offset + (le ? 0 : 8), le),
-		set: (view, offset, le, value) => {
-			view.setFloat64(offset + (le ? 0 : 8), value, le);
-			view.setBigUint64(offset + (le ? 8 : 0), BigInt(0), le);
-		},
-	},
 } as const satisfies Record<string, Type>;
-
-(types.int128 as Mutable<typeof types.int128>).array = class Int128Array extends PrimitiveArray(types.int128) {};
-(types.uint128 as Mutable<typeof types.uint128>).array = class Uint128Array extends PrimitiveArray(types.uint128) {};
-(types.float128 as Mutable<typeof types.float128>).array = class Float128Array extends (
-	PrimitiveArray(types.float128)
-) {};
 
 export type TypeName = keyof typeof types;
 

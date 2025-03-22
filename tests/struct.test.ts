@@ -2,7 +2,8 @@ import { writeFileSync } from 'fs';
 import assert from 'node:assert';
 import { join } from 'path';
 import { decodeASCII, encodeASCII } from '../src/string.js';
-import { member, struct, StructView, types as t } from '../src/struct.js';
+import { member, struct, types as t } from '../src/struct.js';
+import { BufferView } from '../src/buffer.js';
 
 enum Some {
 	thing = 1,
@@ -10,7 +11,7 @@ enum Some {
 }
 
 @struct()
-class Header extends StructView {
+class Header extends BufferView {
 	@t.char(4) public accessor magic_start = encodeASCII('test');
 
 	@t.uint16 public accessor segments: number = 0;
@@ -26,13 +27,13 @@ class AnotherHeader extends Header {
 }
 
 @struct()
-class Segment extends StructView {
+class Segment extends BufferView {
 	@t.uint64 public accessor id = 0x021;
 	@t.uint32(64) public accessor data: number[] = [];
 }
 
 @struct()
-class BinObject extends StructView {
+class BinObject extends BufferView {
 	@member(AnotherHeader) public accessor header = new AnotherHeader();
 
 	@t.char(32) public accessor comment: Uint8Array = new Uint8Array(32);
@@ -50,7 +51,7 @@ segment.data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 obj.segments = [segment];
 
 const bin = new Uint8Array(obj.buffer, obj.byteOffset, obj.byteLength);
-writeFileSync(join(import.meta.dirname, '../tmp/bin'), bin);
+writeFileSync(join(import.meta.dirname, '../tmp/example.bin'), bin);
 
 const omg = new BinObject(bin);
 

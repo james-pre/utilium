@@ -55,7 +55,7 @@ export interface Init {
 	isUnion: boolean;
 }
 
-export type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
+type _DecoratorMetadata<T extends Metadata = Metadata> = DecoratorMetadata & {
 	struct?: T;
 	structInit?: Init;
 };

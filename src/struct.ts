@@ -1,8 +1,7 @@
-import { initView } from './buffer.js';
+import { BufferViewArray } from './buffer.js';
 import { _debugLog } from './debugging.js';
 import * as primitive from './internal/primitives.js';
 import type {
-	_DecoratorMetadata,
 	DecoratorContext,
 	Instance,
 	InstanceLike,
@@ -10,7 +9,6 @@ import type {
 	Metadata,
 	Options,
 	Size,
-	Static,
 	StaticLike,
 	TypeLike,
 } from './internal/struct.js';
@@ -106,17 +104,6 @@ export function struct(options: Partial<Options> = {}) {
 			_debugLog('define', target.name + '.' + member.name);
 
 			members.set(member.name, member);
-
-			context.addInitializer(function (this: T) {
-				Object.defineProperty(this.prototype, member.name, {
-					get(this: Instance) {
-						return _get(this, member);
-					},
-					set(this: Instance, value) {
-						_set(this, member, value);
-					},
-				});
-			});
 		}
 
 		context.metadata.struct = {
@@ -126,50 +113,6 @@ export function struct(options: Partial<Options> = {}) {
 			isDynamic: init.isDynamic,
 			isUnion: options.isUnion ?? false,
 		} satisfies Metadata;
-	};
-}
-
-/** Creates a view of an array buffer  */
-export class StructView<T extends ArrayBufferLike = ArrayBuffer> implements ArrayBufferView<T> {
-	declare static [Symbol.metadata]?: _DecoratorMetadata | null;
-
-	declare public readonly buffer: T;
-	declare public readonly byteOffset: number;
-	declare public readonly byteLength: number;
-
-	public constructor(buffer?: T | ArrayBufferView<T> | ArrayLike<number>, byteOffset?: number, byteLength?: number) {
-		initView<T>(this, buffer, byteOffset, byteLength);
-	}
-}
-
-/** Creates an array of a struct type */
-export function StructArray<T extends Static>(struct: T) {
-	return class StructArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer> extends Array {
-		declare static [Symbol.metadata]?: _DecoratorMetadata | null;
-
-		declare public readonly buffer: TArrayBuffer;
-		declare public readonly byteOffset: number;
-		declare public readonly byteLength: number;
-
-		public constructor(
-			buffer?: TArrayBuffer | ArrayBufferView<TArrayBuffer> | ArrayLike<number>,
-			byteOffset?: number,
-			byteLength?: number
-		) {
-			const t_size = sizeof(struct);
-
-			const length = (byteLength ?? t_size) / t_size;
-
-			if (!Number.isSafeInteger(length)) throw new Error('Invalid array length: ' + length);
-
-			super(length);
-
-			initView(this, buffer, byteOffset, byteLength);
-
-			for (let i = 0; i < length; i++) {
-				this[i] = new struct(this.buffer, this.byteOffset + i * t_size, t_size);
-			}
-		}
 	};
 }
 
@@ -184,7 +127,7 @@ export interface MemberOptions {
  * Decorates a class member to be serialized
  */
 export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions = {}) {
-	return function (value: Target<V>, context: Context<V>): Result<V> {
+	return function __decorateMember(value: Target<V>, context: Context<V>): Result<V> {
 		if (context.kind != 'accessor') throw new Error('Member must be an accessor');
 
 		const init = initMetadata(context);
@@ -206,7 +149,7 @@ export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions 
 
 			if (!countedBy) throw new Error(`"${opt.length}" is not declared and cannot be used to count "${name}"`);
 
-			if (!primitive.isTypeName(countedBy.type))
+			if (!primitive.isType(countedBy.type))
 				throw new Error(`"${opt.length}" is not a number and cannot be used to count "${name}"`);
 
 			init.isDynamic = true;
@@ -298,10 +241,8 @@ function _get(instance: Instance, member: Member, index?: number) {
 	const { type, length: rawLength } = member;
 	const length = _memberLength(instance, rawLength);
 
-	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
-
 	if (length > 0 && typeof index != 'number') {
-		return new (primitive.isType(type) ? type.array : StructArray(type))(
+		return new (primitive.isType(type) ? type.array : BufferViewArray(type, sizeof(type)))(
 			instance.buffer,
 			instance.byteOffset + member.offset,
 			length * sizeof(type)
@@ -312,6 +253,7 @@ function _get(instance: Instance, member: Member, index?: number) {
 
 	if (isStatic(type)) return new type(instance.buffer, offset, sizeof(type));
 
+	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
 	return type.get(view, offset, member.littleEndian);
 }
 
