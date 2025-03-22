@@ -136,3 +136,10 @@ export function bindFunctions<T extends object, This = any>(fns: T, thisValue: T
 		Object.entries(fns).map(([k, v]) => [k, typeof v == 'function' ? v.bind(thisValue) : v])
 	) as Bound<T, This>;
 }
+
+/**
+ * Makes all properties in T mutable
+ */
+export type Mutable<T> = {
+	-readonly [P in keyof T]: T[P];
+};

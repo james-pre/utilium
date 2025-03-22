@@ -1,34 +1,22 @@
-import type { ArrayBufferViewConstructor } from './buffer.js';
+import { initView } from './buffer.js';
 import { _debugLog } from './debugging.js';
 import * as primitive from './internal/primitives.js';
 import type {
-	AccessorDecorator,
+	_DecoratorMetadata,
 	DecoratorContext,
-	DecoratorResult,
-	DecoratorTarget,
 	Instance,
 	InstanceLike,
 	Member,
-	MemberContext,
-	MemberInit,
 	Metadata,
 	Options,
 	Size,
+	Static,
 	StaticLike,
 	TypeLike,
 } from './internal/struct.js';
-import {
-	_polyfill_metadata,
-	checkStruct,
-	initMetadata,
-	isCustom,
-	isInstance,
-	isStatic,
-	isStruct,
-} from './internal/struct.js';
+import { checkStruct, initMetadata, isInstance, isStatic, isStruct } from './internal/struct.js';
 import { _throw } from './misc.js';
-import { capitalize } from './string.js';
-import type { ClassLike } from './types.js';
+import { getAllPrototypes } from './objects.js';
 export * as Struct from './internal/struct.js';
 
 /**
@@ -51,43 +39,33 @@ export function sizeof<T extends TypeLike>(type: T | T[]): Size<T> {
 	if (typeof type == 'string') {
 		primitive.checkValid(type);
 
-		return (+primitive.normalize(type).match(primitive.regex)![2] / 8) as Size<T>;
+		return primitive.types[primitive.normalize(type)].size as Size<T>;
 	}
 
-	if (isCustom(type)) return type[Symbol.size] as Size<T>;
+	if (primitive.isType(type)) return type.size as Size<T>;
 
 	checkStruct(type);
 
 	const constructor = isStatic(type) ? type : type.constructor;
-	_polyfill_metadata(constructor);
-	const { struct } = constructor[Symbol.metadata];
+	const { struct, structInit } = constructor[Symbol.metadata];
 
-	let size = struct.staticSize;
+	if (isStatic(type) || !struct.isDynamic) return struct.staticSize as Size<T>;
 
-	if (isStatic(type)) return size as Size<T>;
+	const last = structInit.members.at(-1)!;
+	const length = (type as any)[last.length as keyof typeof type];
+	let dynamicSize = 0;
 
-	for (const member of struct.members.values()) {
-		const value = (type as any)[member.name];
+	if (primitive.isType(last.type)) {
+		dynamicSize = last.type.size * length;
+	} else {
+		const value = type[last.name];
 
-		if (isInstance(value) && value.constructor[Symbol.metadata].struct.isDynamic) {
-			if (struct.isUnion) size = Math.max(size, sizeof(value));
-			else size += sizeof(value);
-			continue;
+		for (let i = 0; i < length; i++) {
+			dynamicSize += sizeof(isStruct(value[i]) ? value[i] : last.type);
 		}
-
-		if (typeof member.length != 'string') continue;
-
-		let subSize = 0;
-
-		for (let i = 0; i < (type as any)[member.length]; i++) {
-			subSize += sizeof(isStruct(value[i]) ? value[i] : member.type);
-		}
-
-		if (struct.isUnion) size = Math.max(size, subSize);
-		else size += subSize;
 	}
 
-	return size as Size<T>;
+	return (struct.isUnion ? Math.max(struct.staticSize, dynamicSize) : struct.staticSize + dynamicSize) as Size<T>;
 }
 
 /**
@@ -98,39 +76,14 @@ export function offsetof(type: StaticLike | InstanceLike, memberName: string): n
 
 	const constructor = isStatic(type) ? type : type.constructor;
 
-	_polyfill_metadata(constructor);
-	const { struct } = constructor[Symbol.metadata];
+	const member = constructor[Symbol.metadata].struct.members.get(memberName);
 
-	if (isStatic(type) || !struct.isDynamic) {
-		return (
-			struct.members.get(memberName)?.staticOffset
-			?? _throw(new Error('Struct does not have member: ' + memberName))
-		);
-	}
+	if (!member) throw new Error('Struct does not have member: ' + memberName);
 
-	let offset = 0;
-
-	for (const member of struct.members.values()) {
-		if (member.name == memberName) return offset;
-
-		const value = (type as any)[member.name];
-		offset += sizeof(isStruct(value) ? value : member.type);
-	}
-
-	throw new Error('Struct does not have member: ' + memberName);
+	return member.offset;
 }
 
-function _toDecl(init: MemberInit): string {
-	let decl = `${typeof init.type == 'string' ? init.type : init.type.name} ${init.name}`;
-
-	if (init.length !== undefined) decl += `[${init.length}]`;
-
-	return decl;
-}
-
-/**
- * Aligns a number
- */
+/** Aligns a number */
 export function align(value: number, alignment: number): number {
 	return Math.ceil(value / alignment) * alignment;
 }
@@ -139,155 +92,105 @@ export function align(value: number, alignment: number): number {
  * Decorates a class as a struct
  */
 export function struct(options: Partial<Options> = {}) {
-	return function _decorateStruct<const T extends StaticLike>(
+	return function _decorateStruct<T extends StaticLike>(
 		target: T,
-		context: ClassDecoratorContext & DecoratorContext
-	): T {
+		context: ClassDecoratorContext<T> & DecoratorContext
+	): void {
+		const init = initMetadata(context);
+
 		const members = new Map<string, Member>();
 
-		let staticSize = 0,
-			isDynamic = false;
+		for (const member of init.members) {
+			if (options.isUnion) member.offset = 0;
 
-		for (const { name, type, length } of initMetadata(context)) {
-			if (typeof length == 'string') {
-				const countedBy = members.get(length);
+			_debugLog('define', target.name + '.' + member.name);
 
-				if (!countedBy) throw new Error(`"${length}" is undefined or declared after "${name}"`);
+			members.set(member.name, member);
 
-				if (!primitive.isType(countedBy.type))
-					throw new Error(`"${length}" is not a number and cannot be used to count "${name}"`);
-			}
-
-			let decl = `${typeof type == 'string' ? type : type.name} ${name}`;
-
-			if (length !== undefined) decl += `[${length}]`;
-
-			const member = {
-				name,
-				staticOffset: options.isUnion ? 0 : isDynamic ? -1 : staticSize,
-				type: primitive.isValid(type) ? primitive.normalize(type) : type,
-				length,
-				decl,
-			};
-
-			members.set(name, member);
-
-			const memberSize =
-				typeof length == 'string' || (isStatic(type) && type[Symbol.metadata].struct.isDynamic)
-					? 0
-					: sizeof(type) * (length || 1);
-
-			isDynamic ||= isStatic(type) ? type[Symbol.metadata].struct.isDynamic : typeof length == 'string';
-			staticSize = options.isUnion ? Math.max(staticSize, memberSize) : staticSize + memberSize;
-			staticSize = align(staticSize, options.align || 1);
-
-			_debugLog('define', target.name + '.' + name);
+			context.addInitializer(function (this: T) {
+				Object.defineProperty(this.prototype, member.name, {
+					get(this: Instance) {
+						return _get(this, member);
+					},
+					set(this: Instance, value) {
+						_set(this, member, value);
+					},
+				});
+			});
 		}
 
 		context.metadata.struct = {
 			options,
 			members,
-			staticSize,
-			isDynamic,
+			staticSize: init.size,
+			isDynamic: init.isDynamic,
 			isUnion: options.isUnion ?? false,
 		} satisfies Metadata;
-
-		return target;
 	};
 }
 
-interface View<T extends ArrayBufferLike = ArrayBuffer> {
-	buffer: T;
-	byteOffset: number;
-	byteLength: number;
-}
+/** Creates a view of an array buffer  */
+export class StructView<T extends ArrayBufferLike = ArrayBuffer> implements ArrayBufferView<T> {
+	declare static [Symbol.metadata]?: _DecoratorMetadata | null;
 
-function _initView<T extends ArrayBufferLike = ArrayBuffer>(
-	view: View<T>,
-	buffer?: T | ArrayBufferView<T> | ArrayLike<number>,
-	byteOffset?: number,
-	byteLength?: number
-) {
-	if (
-		!buffer
-		|| buffer instanceof ArrayBuffer
-		|| (globalThis.SharedArrayBuffer && buffer instanceof globalThis.SharedArrayBuffer)
-	) {
-		const { staticSize = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {};
-		view.buffer = buffer ?? (new ArrayBuffer(staticSize) as T);
-		view.byteOffset = byteOffset ?? 0;
-		view.byteLength = byteLength ?? staticSize;
-		return;
-	}
+	declare public readonly buffer: T;
+	declare public readonly byteOffset: number;
+	declare public readonly byteLength: number;
 
-	if (ArrayBuffer.isView(buffer)) {
-		view.buffer = buffer.buffer;
-		view.byteOffset = buffer.byteOffset;
-		view.byteLength = buffer.byteLength;
-		return;
-	}
-
-	const array = buffer as ArrayLike<number>;
-
-	view.buffer = new ArrayBuffer(array.length) as T;
-	view.byteOffset = 0;
-	view.byteLength = array.length;
-
-	const data = new Uint8Array(view.buffer);
-	for (let i = 0; i < array.length; i++) {
-		data[i] = array[i];
+	public constructor(buffer?: T | ArrayBufferView<T> | ArrayLike<number>, byteOffset?: number, byteLength?: number) {
+		initView<T>(this, buffer, byteOffset, byteLength);
 	}
 }
 
-export class StructView implements ArrayBufferView {
-	public readonly buffer!: ArrayBufferLike;
-	public readonly byteOffset!: number;
-	public readonly byteLength!: number;
+/** Creates an array of a struct type */
+export function StructArray<T extends Static>(struct: T) {
+	return class StructArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer> extends Array {
+		declare static [Symbol.metadata]?: _DecoratorMetadata | null;
 
-	public constructor(
-		buffer?: ArrayBufferLike | ArrayBufferView | ArrayLike<number>,
-		byteOffset?: number,
-		byteLength?: number
-	) {
-		_initView(this, buffer, byteOffset, byteLength);
-	}
-}
-
-export class ArrayView {
-	public constructor(
-		public readonly buffer: ArrayBufferLike,
-		public readonly byteOffset: number,
-		public readonly length: number
-	) {}
-}
-
-/** Mixin */
-export function _struct<T extends ClassLike>(base: T): StaticLike & T {
-	// @ts-expect-error 2545
-	abstract class __struct__ extends base {
-		public readonly buffer!: ArrayBufferLike;
-		public readonly byteOffset!: number;
-		public readonly byteLength!: number;
+		declare public readonly buffer: TArrayBuffer;
+		declare public readonly byteOffset: number;
+		declare public readonly byteLength: number;
 
 		public constructor(
-			buffer?: ArrayBufferLike | ArrayBufferView | ArrayLike<number>,
+			buffer?: TArrayBuffer | ArrayBufferView<TArrayBuffer> | ArrayLike<number>,
 			byteOffset?: number,
 			byteLength?: number
 		) {
-			super();
+			const t_size = sizeof(struct);
 
-			_initView(this, buffer, byteOffset, byteLength);
+			const length = (byteLength ?? t_size) / t_size;
+
+			if (!Number.isSafeInteger(length)) throw new Error('Invalid array length: ' + length);
+
+			super(length);
+
+			initView(this, buffer, byteOffset, byteLength);
+
+			for (let i = 0; i < length; i++) {
+				this[i] = new struct(this.buffer, this.byteOffset + i * t_size, t_size);
+			}
 		}
-	}
+	};
+}
 
-	return __struct__;
+export interface MemberOptions {
+	bigEndian?: boolean;
+	length?: number | string;
+	align?: number;
+	typeName?: string;
 }
 
 /**
  * Decorates a class member to be serialized
  */
-export function member<V>(type: primitive.Valid | StaticLike, length?: number | string) {
-	return function (value: DecoratorTarget<V>, context: MemberContext): DecoratorResult<V> {
+export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions = {}) {
+	return function (value: Target<V>, context: Context<V>): Result<V> {
+		if (context.kind != 'accessor') throw new Error('Member must be an accessor');
+
+		const init = initMetadata(context);
+
+		if (init.isDynamic) throw new Error('Dynamic members must be declared at the end of the struct');
+
 		let name = context.name;
 		if (typeof name == 'symbol') {
 			console.warn('Symbol used for struct member name will be coerced to string: ' + name.toString());
@@ -296,24 +199,45 @@ export function member<V>(type: primitive.Valid | StaticLike, length?: number | 
 
 		if (!name) throw new ReferenceError('Invalid name for struct member');
 
-		if (!primitive.isValid(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type);
+		if (!primitive.isType(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type.name);
 
-		const init = {
+		if (typeof opt.length == 'string') {
+			const countedBy = init.members.find(m => m.name == opt.length);
+
+			if (!countedBy) throw new Error(`"${opt.length}" is not declared and cannot be used to count "${name}"`);
+
+			if (!primitive.isTypeName(countedBy.type))
+				throw new Error(`"${opt.length}" is not a number and cannot be used to count "${name}"`);
+
+			init.isDynamic = true;
+		}
+
+		const size = align(
+			sizeof(type) * (typeof opt.length == 'string' ? 0 : (opt.length ?? 1)),
+			opt.align ?? sizeof(type)
+		);
+
+		const member = {
 			name,
-			type: primitive.isValid(type) ? primitive.normalize(type) : type,
-			length,
-		} satisfies MemberInit;
+			offset: init.size,
+			type,
+			length: opt.length,
+			size,
+			decl: `${opt.typeName ?? type.name} ${name}${opt.length !== undefined ? `[${JSON.stringify(opt.length)}]` : ''}`,
+			littleEndian: !opt.bigEndian,
+		} satisfies Member;
 
-		initMetadata(context).push(init);
+		init.members.push(member);
 
-		if (context.kind != 'accessor') throw new Error('Member must be an accessor');
+		// Apply after setting `offset`
+		init.size += size;
 
 		return {
-			get(this: Instance): V {
-				return _get(this, init) as V;
+			get() {
+				return _get(this, member);
 			},
-			set(this: Instance, value: V) {
-				return _set(this, init, value);
+			set(value) {
+				_set(this, member, value);
 			},
 		};
 	};
@@ -328,146 +252,87 @@ function _memberLength<T extends Metadata>(instance: Instance<T>, length?: numbe
 		: _throw(new Error('Array lengths must be natural numbers'));
 }
 
-// temporary
-const __options__ = { bigEndian: false };
-
-function _set(instance: Instance, init: MemberInit, value: any, index?: number) {
-	const { name, type, length: rawLength } = init;
+function _set(instance: Instance, member: Member, value: any, index?: number) {
+	const { name, type, length: rawLength } = member;
 	const length = _memberLength(instance, rawLength);
-	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
-
-	_debugLog('\t', _toDecl(init));
-
-	if (length && length != -1 && typeof index != 'number') {
-		for (let i = 0; i < length; i++) _set(instance, init, value, i);
-		return;
-	}
-
-	const offset = offsetof(instance, name) + (index ?? 0) * sizeof(type);
-
-	if (typeof value == 'string') {
-		value = value.charCodeAt(0);
-	}
 
 	if (!primitive.isType(type)) {
 		if (!isInstance(value)) return _debugLog(`Tried to set "${name}" to a non-instance value`);
 
-		return;
-	}
-
-	const fn = `set${capitalize(type)}` as const;
-
-	if (fn == 'setInt64') {
-		view.setBigInt64(offset, BigInt(value), !__options__.bigEndian);
-		return;
-	}
-
-	if (fn == 'setUint64') {
-		view.setBigUint64(offset, BigInt(value), !__options__.bigEndian);
-		return;
-	}
-
-	if (fn == 'setInt128') {
-		view.setBigUint64(offset + (!__options__.bigEndian ? 0 : 8), value & primitive.mask64, !__options__.bigEndian);
-		view.setBigInt64(offset + (!__options__.bigEndian ? 8 : 0), value >> BigInt(64), !__options__.bigEndian);
-		return;
-	}
-
-	if (fn == 'setUint128') {
-		view.setBigUint64(offset + (!__options__.bigEndian ? 0 : 8), value & primitive.mask64, !__options__.bigEndian);
-		view.setBigUint64(offset + (!__options__.bigEndian ? 8 : 0), value >> BigInt(64), !__options__.bigEndian);
-		return;
-	}
-
-	if (fn == 'setFloat128') {
-		view.setFloat64(offset + (!__options__.bigEndian ? 0 : 8), Number(value), !__options__.bigEndian);
-		view.setBigUint64(offset + (!__options__.bigEndian ? 8 : 0), BigInt(0), !__options__.bigEndian);
-		return;
-	}
-
-	view[fn](offset, Number(value), !__options__.bigEndian);
-}
-
-function _get(instance: Instance, init: MemberInit, index?: number) {
-	const { name, type, length: rawLength } = init;
-	const length = _memberLength(instance, rawLength);
-
-	// We need to proxy arrays
-	if (length && length != -1 && typeof index != 'number') {
-		const jsName = primitive.isType(type) && primitive.jsName(type);
-
-		if (jsName) {
-			const ctor = globalThis[`${jsName}Array`] as ArrayBufferViewConstructor; // cast otherwise TS expects 0-1 arguments
-			return new ctor(instance.buffer, instance.byteOffset, length);
+		if (length > 0 && typeof index != 'number') {
+			for (let i = 0; i < length; i++) _set(instance, member, value[i], i);
+			return;
 		}
 
-		return new Proxy(
-			{
-				length,
-			},
-			{
-				get(target, index) {
-					if (index in target) return target[index as keyof typeof target];
-					const i = parseInt(index.toString());
-					if (!Number.isSafeInteger(i)) throw new Error('Invalid index: ' + index.toString());
-					return _get(instance, init, i);
-				},
-				set(target, index, value) {
-					if (index in target) {
-						target[index as keyof typeof target] = value;
-						return true;
-					}
+		if (!Array.from(getAllPrototypes(value.constructor)).some(c => c === type))
+			throw new Error(`${value.constructor.name} is not a subtype of ${type.name}`);
 
-					const i = parseInt(index.toString());
-					if (!Number.isSafeInteger(i)) throw new Error('Invalid index: ' + index.toString());
-					_set(instance, init, i, value);
-					return true;
-				},
-			}
-		);
+		const offset = instance.byteOffset + member.offset + (index ?? 0) * sizeof(type);
+
+		// It's already the same value
+		if (value.buffer === instance.buffer && value.byteOffset === offset) return;
+
+		const current = new Uint8Array(instance.buffer, offset, sizeof(value));
+
+		current.set(new Uint8Array(value.buffer, value.byteOffset, sizeof(value)));
+
+		return;
 	}
-
-	const offset = offsetof(instance, name) + (index ?? 0) * sizeof(type);
 
 	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
 
-	_debugLog('\t', _toDecl(init));
-
-	if (!primitive.isType(type)) {
-		return new type(instance.buffer, offset, sizeof(type));
+	if (length > 0 && typeof index != 'number') {
+		for (let i = 0; i < length; i++) {
+			const offset = member.offset + i * type.size;
+			type.set(view, offset, member.littleEndian, value[i]);
+		}
+		return;
 	}
 
-	if (type == 'int128') {
-		return (
-			(view.getBigInt64(offset + (!__options__.bigEndian ? 8 : 0), !__options__.bigEndian) << BigInt(64))
-			| view.getBigUint64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian)
-		);
-	}
+	if (typeof value == 'string') value = value.charCodeAt(0);
 
-	if (type == 'uint128') {
-		return (
-			(view.getBigUint64(offset + (!__options__.bigEndian ? 8 : 0), !__options__.bigEndian) << BigInt(64))
-			| view.getBigUint64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian)
-		);
-	}
-
-	if (type == 'float128') {
-		return view.getFloat64(offset + (!__options__.bigEndian ? 0 : 8), !__options__.bigEndian);
-	}
-
-	return view[`get${primitive.jsName(type)}` as const](offset, !__options__.bigEndian);
+	type.set(view, member.offset + (index ?? 0) * type.size, member.littleEndian, value);
 }
 
-function _member<T extends primitive.Valid>(type: T) {
-	function _structMemberDecorator<V>(length: number | string): AccessorDecorator<V>;
-	function _structMemberDecorator<V>(value: DecoratorTarget<V>, context: MemberContext): DecoratorResult<V>;
+function _get(instance: Instance, member: Member, index?: number) {
+	const { type, length: rawLength } = member;
+	const length = _memberLength(instance, rawLength);
+
+	const view = new DataView(instance.buffer, instance.byteOffset, instance.byteLength);
+
+	if (length > 0 && typeof index != 'number') {
+		return new (primitive.isType(type) ? type.array : StructArray(type))(
+			instance.buffer,
+			instance.byteOffset + member.offset,
+			length * sizeof(type)
+		);
+	}
+
+	const offset = member.offset + (index ?? 0) * sizeof(type);
+
+	if (isStatic(type)) return new type(instance.buffer, offset, sizeof(type));
+
+	return type.get(view, offset, member.littleEndian);
+}
+
+// Decorator utility types
+type Target<V> = ClassAccessorDecoratorTarget<any, V>;
+type Result<V> = ClassAccessorDecoratorResult<any, V>;
+type Context<V> = ClassAccessorDecoratorContext<any, V> & DecoratorContext;
+type Decorator<V> = (value: Target<V>, context: Context<V>) => Result<V>;
+
+function _member<T extends primitive.Valid>(typeName: T) {
+	const type = primitive.types[primitive.normalize(typeName)];
+
+	function _structMemberDecorator<V>(length: number | string): Decorator<V>;
+	function _structMemberDecorator<V>(value: Target<V>, context: Context<V>): Result<V>;
 	function _structMemberDecorator<V>(
-		valueOrLength: DecoratorTarget<V> | number | string,
-		context?: MemberContext
-	): AccessorDecorator<V> | DecoratorResult<V> {
+		valueOrLength: Target<V> | number | string,
+		context?: Context<V>
+	): Decorator<V> | Result<V> {
 		return typeof valueOrLength == 'number' || typeof valueOrLength == 'string'
-			? member<V>(type, valueOrLength)
-			: member<V>(type)(valueOrLength, context!);
+			? member<V>(type, { length: valueOrLength, typeName })
+			: member<V>(type, { typeName })(valueOrLength, context!);
 	}
 
 	return _structMemberDecorator;

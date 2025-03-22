@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 
+import type { Mutable } from './objects.js';
+
 /**
  * A generic ArrayBufferView (typed array) constructor
  */
@@ -54,4 +56,41 @@ export function toUint8Array(buffer: ArrayBufferLike | ArrayBufferView): Uint8Ar
 	if (buffer instanceof Uint8Array) return buffer;
 	if (!ArrayBuffer.isView(buffer)) return new Uint8Array(buffer);
 	return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+}
+
+export function initView<T extends ArrayBufferLike = ArrayBuffer>(
+	view: Mutable<ArrayBufferView<T>>,
+	buffer?: T | ArrayBufferView<T> | ArrayLike<number>,
+	byteOffset?: number,
+	byteLength?: number
+) {
+	if (
+		!buffer
+		|| buffer instanceof ArrayBuffer
+		|| (globalThis.SharedArrayBuffer && buffer instanceof globalThis.SharedArrayBuffer)
+	) {
+		const { staticSize = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {};
+		view.buffer = buffer ?? (new ArrayBuffer(staticSize) as T);
+		view.byteOffset = byteOffset ?? 0;
+		view.byteLength = byteLength ?? staticSize;
+		return;
+	}
+
+	if (ArrayBuffer.isView(buffer)) {
+		view.buffer = buffer.buffer;
+		view.byteOffset = buffer.byteOffset;
+		view.byteLength = buffer.byteLength;
+		return;
+	}
+
+	const array = buffer as ArrayLike<number>;
+
+	view.buffer = new ArrayBuffer(array.length) as T;
+	view.byteOffset = 0;
+	view.byteLength = array.length;
+
+	const data = new Uint8Array(view.buffer);
+	for (let i = 0; i < array.length; i++) {
+		data[i] = array[i];
+	}
 }
