@@ -20,7 +20,7 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v3
 
-            - name: Setup npm authenication
+            - name: Setup npm authentication
               uses: actions/setup-node@v3
               with:
                   registry-url: https://registry.npmjs.org/
