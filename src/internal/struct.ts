@@ -27,7 +27,8 @@ export interface Member {
 
 	/** The size of the member, 0 for dynamically sized arrays */
 	size: number;
-	length?: number | string;
+	length?: number;
+	countedBy?: string;
 
 	/** A C-style type/name declaration string, used for diagnostics */
 	decl: string;

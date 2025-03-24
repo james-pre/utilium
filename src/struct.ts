@@ -118,9 +118,10 @@ export function struct(options: Partial<Options> = {}) {
 
 export interface MemberOptions {
 	bigEndian?: boolean;
-	length?: number | string;
+	length?: number;
 	align?: number;
 	typeName?: string;
+	countedBy?: string;
 }
 
 /**
@@ -145,12 +146,12 @@ export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions 
 		if (!primitive.isType(type) && !isStatic(type)) throw new TypeError('Not a valid type: ' + type.name);
 
 		if (typeof opt.length == 'string') {
-			const countedBy = init.members.find(m => m.name == opt.length);
+			const countedBy = init.members.find(m => m.name == opt.countedBy);
 
-			if (!countedBy) throw new Error(`"${opt.length}" is not declared and cannot be used to count "${name}"`);
+			if (!countedBy) throw new Error(`"${opt.countedBy}" is not declared and cannot be used to count "${name}"`);
 
 			if (!primitive.isType(countedBy.type))
-				throw new Error(`"${opt.length}" is not a number and cannot be used to count "${name}"`);
+				throw new Error(`"${opt.countedBy}" is not a number and cannot be used to count "${name}"`);
 
 			init.isDynamic = true;
 		}
@@ -165,6 +166,7 @@ export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions 
 			offset: init.size,
 			type,
 			length: opt.length,
+			countedBy: opt.countedBy,
 			size,
 			decl: `${opt.typeName ?? type.name} ${name}${opt.length !== undefined ? `[${JSON.stringify(opt.length)}]` : ''}`,
 			littleEndian: !opt.bigEndian,
@@ -187,17 +189,17 @@ export function member<V>(type: primitive.Type | StaticLike, opt: MemberOptions 
 }
 
 /** Gets the length of a member */
-function _memberLength<T extends Metadata>(instance: Instance<T>, length?: number | string): number {
+function _memberLength<T extends Metadata>(instance: Instance<T>, length?: number, countedBy?: string): number {
 	if (length === undefined) return -1;
-	if (typeof length == 'string') return instance[length];
+	if (typeof countedBy == 'string') length = Math.min(length, instance[countedBy]);
 	return Number.isSafeInteger(length) && length >= 0
 		? length
 		: _throw(new Error('Array lengths must be natural numbers'));
 }
 
 function _set(instance: Instance, member: Member, value: any, index?: number) {
-	const { name, type, length: rawLength } = member;
-	const length = _memberLength(instance, rawLength);
+	const { name, type, length: maxLength, countedBy } = member;
+	const length = _memberLength(instance, maxLength, countedBy);
 
 	if (!primitive.isType(type)) {
 		if (!isInstance(value)) return _debugLog(`Tried to set "${name}" to a non-instance value`);
@@ -238,8 +240,8 @@ function _set(instance: Instance, member: Member, value: any, index?: number) {
 }
 
 function _get(instance: Instance, member: Member, index?: number) {
-	const { type, length: rawLength } = member;
-	const length = _memberLength(instance, rawLength);
+	const { type, length: maxLength, countedBy } = member;
+	const length = _memberLength(instance, maxLength, countedBy);
 
 	if (length > 0 && typeof index != 'number') {
 		return new (primitive.isType(type) ? type.array : BufferViewArray(type, sizeof(type)))(
@@ -266,15 +268,18 @@ type Decorator<V> = (value: Target<V>, context: Context<V>) => Result<V>;
 function _member<T extends primitive.Valid>(typeName: T) {
 	const type = primitive.types[primitive.normalize(typeName)];
 
-	function _structMemberDecorator<V>(length: number | string): Decorator<V>;
+	function _structMemberDecorator<V>(length: number, options?: Omit<MemberOptions, 'length'>): Decorator<V>;
 	function _structMemberDecorator<V>(value: Target<V>, context: Context<V>): Result<V>;
 	function _structMemberDecorator<V>(
-		valueOrLength: Target<V> | number | string,
-		context?: Context<V>
+		valueOrLength: Target<V> | number,
+		context?: Context<V> | Omit<MemberOptions, 'length'>
 	): Decorator<V> | Result<V> {
-		return typeof valueOrLength == 'number' || typeof valueOrLength == 'string'
-			? member<V>(type, { length: valueOrLength, typeName })
-			: member<V>(type, { typeName })(valueOrLength, context!);
+		return typeof valueOrLength == 'number'
+			? member<V>(type, { typeName, length: valueOrLength, ...context })
+			: member<V>(type, { typeName })(
+					valueOrLength,
+					context && 'name' in context ? context : _throw('Invalid decorator context object')
+				);
 	}
 
 	return _structMemberDecorator;
