@@ -92,22 +92,3 @@ export function createLogDecorator(options: CreateLoggerOptions) {
 		} as T;
 	};
 }
-
-/**
- * @internal @hidden
- */
-export let U_DEBUG = 'process' in globalThis && 'env' in globalThis.process && globalThis.process.env.U_DEBUG == 'true';
-
-/**
- * @internal @hidden
- */
-export function _setDebug(value: boolean) {
-	U_DEBUG = value;
-}
-
-/**
- * @internal @hidden
- */
-export function _debugLog(...text: any[]) {
-	if (U_DEBUG) console.debug('[U]', ...text);
-}

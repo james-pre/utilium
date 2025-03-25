@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 
-import { _throw } from './misc.js';
 import type { Mutable } from './objects.js';
 
 /**
@@ -20,6 +19,7 @@ export interface ArrayBufferViewConstructor {
 
 /**
  * A generic typed array.
+ * @see https://mdn.io/TypedArray
  */
 export interface TypedArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer, TValue = number | bigint>
 	extends ArrayBufferView<TArrayBuffer> {
@@ -334,10 +334,9 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	byteLength?: number
 ) {
 	if (typeof buffer == 'number') {
-		const per = view.BYTES_PER_ELEMENT ?? _throw(new Error('BYTES_PER_ELEMENT is not set'));
-		view.buffer = new ArrayBuffer(buffer * per) as T;
+		view.buffer = new ArrayBuffer(buffer) as T;
 		view.byteOffset = 0;
-		view.byteLength = buffer * per;
+		view.byteLength = buffer;
 		return;
 	}
 
@@ -346,10 +345,10 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 		|| buffer instanceof ArrayBuffer
 		|| (globalThis.SharedArrayBuffer && buffer instanceof globalThis.SharedArrayBuffer)
 	) {
-		const { staticSize = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {};
-		view.buffer = buffer ?? (new ArrayBuffer(staticSize) as T);
+		const { size = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {}; // Memium structs
+		view.buffer = buffer ?? (new ArrayBuffer(size) as T);
 		view.byteOffset = byteOffset ?? 0;
-		view.byteLength = byteLength ?? staticSize;
+		view.byteLength = byteLength ?? size;
 		return;
 	}
 
@@ -360,15 +359,14 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 		return;
 	}
 
-	const array = buffer as ArrayLike<number>;
+	const u8 = new Uint8Array((buffer as ArrayLike<number>).length) as Uint8Array<T>;
 
-	view.buffer = new ArrayBuffer(array.length) as T;
+	view.buffer = u8.buffer;
 	view.byteOffset = 0;
-	view.byteLength = array.length;
+	view.byteLength = u8.length;
 
-	const data = new Uint8Array(view.buffer);
-	for (let i = 0; i < array.length; i++) {
-		data[i] = array[i];
+	for (let i = 0; i < u8.length; i++) {
+		u8[i] = (buffer as ArrayLike<number>)[i];
 	}
 }
 
@@ -378,7 +376,12 @@ export class BufferView<T extends ArrayBufferLike = ArrayBufferLike> implements 
 	declare public readonly byteOffset: number;
 	declare public readonly byteLength: number;
 
-	public constructor(buffer?: T | ArrayBufferView<T> | ArrayLike<number>, byteOffset?: number, byteLength?: number) {
+	public constructor(
+		/** The buffer, view, or byte length to create the view from */
+		buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
+		byteOffset?: number,
+		byteLength?: number
+	) {
 		initView<T>(this, buffer, byteOffset, byteLength);
 	}
 }

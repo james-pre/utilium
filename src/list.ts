@@ -27,7 +27,7 @@ export class List<T>
 	}
 
 	public toJSON() {
-		return JSON.stringify(Array.from(this.data));
+		return Array.from(this.data);
 	}
 
 	public toString() {
