@@ -2,7 +2,6 @@
 
 A bunch of utilities for Typescript. This includes:
 
-- Structs (using decorators)
 - Compile-time math types
 - Debugging types and functions
 - Utilities for using `fetch` with [HTTP range requests](https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests)
