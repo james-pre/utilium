@@ -12,10 +12,12 @@
 	"exports": {
 		".": "./dist/index.js",
 		"./*": "./dist/*",
-		"./eslint": "./eslint.shared.js"
+		"./eslint": "./eslint.shared.js",
+		"./typedoc-no-ref": "./scripts/typedoc-no-ref.js"
 	},
 	"files": [
 		"dist",
+		"scripts",
 		"eslint.shared.js"
 	],
 	"scripts": {
