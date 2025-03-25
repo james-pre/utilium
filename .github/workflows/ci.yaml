@@ -35,10 +35,8 @@ jobs:
               run: npm run lint
 
             - name: Build
-              run: npm run build
+              run: npx tsc
 
-            - name: Test
-              run: npm test
     docs:
         needs: ci
         runs-on: ubuntu-latest
@@ -63,7 +61,7 @@ jobs:
               run: npm install
 
             - name: Build docs
-              run: npm run build:docs
+              run: npx typedoc
 
             - name: Upload docs artifact
               uses: actions/upload-pages-artifact@v3

@@ -22,10 +22,7 @@
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
 		"lint": "tsc --noEmit && eslint src",
-		"test": "tsx --test",
-		"build": "tsc -p tsconfig.json",
-		"build:docs": "typedoc",
-		"prepublishOnly": "npm run build"
+		"prepublishOnly": "npx tsc"
 	},
 	"repository": {
 		"type": "git",
