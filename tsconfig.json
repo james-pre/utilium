@@ -5,9 +5,6 @@
 		"target": "ES2022",
 		"moduleResolution": "NodeNext",
 		"outDir": "dist",
-		"typeRoots": ["node_modules/@types"],
-		"resolveJsonModule": true,
-		"esModuleInterop": true,
 		"noImplicitThis": true,
 		"declaration": true,
 		"strict": true
