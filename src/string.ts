@@ -63,13 +63,24 @@ export function decodeASCII(input: Uint8Array): string {
 
 export type UUID = `${string}-${string}-${string}-${string}-${string}`;
 
-export function stringifyUUID(uuid: bigint | Uint8Array): UUID {
-	const hex =
-		typeof uuid == 'bigint'
-			? uuid.toString(16).padStart(32, '0')
-			: Array.from(uuid)
-					.map(b => b.toString(16).padStart(2, '0'))
-					.join('');
+export function decodeUUID(uuid: Uint8Array): UUID {
+	const hex = Array.from(uuid)
+		.map(b => b.toString(16).padStart(2, '0'))
+		.join('');
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+export function encodeUUID(uuid: UUID): Uint8Array {
+	const hex = uuid.replace(/-/g, '');
+	const data = new Uint8Array(16);
+	for (let i = 0; i < 16; i++) {
+		data[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+	}
+	return data;
+}
+
+export function stringifyUUID(uuid: bigint): UUID {
+	const hex = uuid.toString(16).padStart(32, '0');
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
