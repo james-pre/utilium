@@ -334,7 +334,7 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	byteLength?: number
 ) {
 	if (typeof buffer == 'number') {
-		const per = view.BYTES_PER_ELEMENT ?? _throw('BYTES_PER_ELEMENT is not set');
+		const per = view.BYTES_PER_ELEMENT ?? _throw(new Error('BYTES_PER_ELEMENT is not set'));
 		view.buffer = new ArrayBuffer(buffer * per) as T;
 		view.byteOffset = 0;
 		view.byteLength = buffer * per;
@@ -385,7 +385,7 @@ export class BufferView<T extends ArrayBufferLike = ArrayBufferLike> implements 
 
 BufferView satisfies ArrayBufferViewConstructor;
 
-/** Creates an array of a buffer view type */
+/** Creates a fixed-size array of a buffer view type */
 export function BufferViewArray<T extends ArrayBufferViewConstructor>(element: T, size: number) {
 	return class BufferViewArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer> extends Array {
 		public readonly BYTES_PER_ELEMENT: number = size;
@@ -399,9 +399,7 @@ export function BufferViewArray<T extends ArrayBufferViewConstructor>(element: T
 			byteOffset?: number,
 			byteLength?: number
 		) {
-			const t_size = size;
-
-			const length = (byteLength ?? t_size) / t_size;
+			const length = (byteLength ?? size) / size;
 
 			if (!Number.isSafeInteger(length)) throw new Error('Invalid array length: ' + length);
 
@@ -410,7 +408,7 @@ export function BufferViewArray<T extends ArrayBufferViewConstructor>(element: T
 			initView(this, buffer, byteOffset, byteLength);
 
 			for (let i = 0; i < length; i++) {
-				this[i] = new element(this.buffer, this.byteOffset + i * t_size, t_size);
+				this[i] = new element(this.buffer, this.byteOffset + i * size, size);
 			}
 		}
 	};

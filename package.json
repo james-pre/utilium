@@ -12,14 +12,11 @@
 	"exports": {
 		".": "./dist/index.js",
 		"./*": "./dist/*",
-		"./eslint": "./eslint.shared.js",
-		"./source": "./src/*"
+		"./eslint": "./eslint.shared.js"
 	},
 	"files": [
-		"src",
 		"dist",
-		"tsconfig.json",
-		"scripts"
+		"eslint.shared.js"
 	],
 	"scripts": {
 		"format:check": "prettier --check .",
