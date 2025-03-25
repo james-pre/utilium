@@ -1,6 +1,6 @@
 {
 	"name": "utilium",
-	"version": "2.0.0-pre.2",
+	"version": "2.0.0",
 	"description": "Typescript utilities",
 	"funding": {
 		"type": "individual",
