@@ -343,12 +343,16 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	if (
 		!buffer
 		|| buffer instanceof ArrayBuffer
-		|| (globalThis.SharedArrayBuffer && buffer instanceof globalThis.SharedArrayBuffer)
+		|| (globalThis.SharedArrayBuffer && buffer instanceof SharedArrayBuffer)
 	) {
-		const { size = 0 } = (view.constructor as any)?.[Symbol.metadata]?.struct ?? {}; // Memium structs
+		const size =
+			byteLength
+			?? (view.constructor as any)?.[Symbol.metadata]?.struct?.size // Memium structs
+			?? buffer?.byteLength
+			?? 0;
 		view.buffer = buffer ?? (new ArrayBuffer(size) as T);
 		view.byteOffset = byteOffset ?? 0;
-		view.byteLength = byteLength ?? size;
+		view.byteLength = size;
 		return;
 	}
 
