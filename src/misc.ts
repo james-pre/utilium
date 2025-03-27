@@ -1,3 +1,5 @@
+import { resolveConstructors } from './objects.js';
+
 export function wait(time: number) {
 	return new Promise(resolve => setTimeout(resolve, time));
 }
@@ -50,6 +52,7 @@ export function canary(error: Error = new Error()) {
  * @see https://github.com/tc39/proposal-throw-expressions
  */
 export function _throw(e: unknown): never {
+	if (e && typeof e == 'object' && resolveConstructors(e).includes('Error')) Error?.captureStackTrace(e, _throw);
 	throw e;
 }
 
