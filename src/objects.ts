@@ -115,7 +115,9 @@ export function setByString(object: Record<string, any>, path: string, value: un
 
 export type JSONPrimitive = null | string | number | boolean;
 
-export type JSONObject = { [K in string]: JSONValue };
+export interface JSONObject {
+	[K: string]: JSONValue | undefined;
+}
 
 export type JSONValue = JSONPrimitive | JSONObject | JSONValue[];
 
