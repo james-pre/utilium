@@ -1,4 +1,5 @@
-import type { UnionToTuple } from './types.js';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Expand, UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(
 	object: O,
@@ -43,6 +44,66 @@ export function assignWithDefaults<To extends Record<keyof any, any>, From exten
 			// Do nothing
 		}
 	}
+}
+
+/**
+ * Returns whether `value` is not a primitive.
+ *
+ * This function is only useful for the type check,
+ * you can do `Object(v) === v` otherwise.
+ */
+export function isObject(value: unknown): value is object {
+	return Object(value) === value;
+}
+
+export type DeepAssign<To extends object, From extends object> = {
+	[K in keyof To | keyof From]: K extends keyof To
+		? K extends keyof From
+			? To[K] extends object // {} <- ?
+				? From[K] extends object
+					? Expand<DeepAssign<To[K], From[K]>> // {} <- {}
+					: never // {} <- x
+				: From[K] extends object
+					? never // x <- {}
+					: From[K] // x <- x
+			: To[K]
+		: From[K & keyof From]; // (none) <- ?
+};
+
+export function deepAssign<To extends object, From extends object>(to: To, from: From): DeepAssign<To, From> {
+	const keys = new Set<keyof To | keyof From>([
+		...(Object.keys(to) as (keyof To)[]),
+		...(Object.keys(from) as (keyof From)[]),
+	]) as Set<keyof To & keyof From>;
+
+	for (const key of keys) {
+		if (!(key in from)) continue;
+
+		const value = from[key] as any;
+
+		if (!(key in to)) {
+			to[key] = value;
+			continue;
+		}
+
+		if (!isObject(to[key]) && Object(value) !== value) {
+			to[key] = value;
+			continue;
+		}
+
+		if (isObject(to[key]) && Object(value) === value) {
+			deepAssign(to[key], value);
+			continue;
+		}
+
+		throw new TypeError(
+			!isObject(to[key])
+				? 'Can not deeply assign an object to a primitive'
+				: 'Can not deeply assign a primitive to an object'
+		);
+	}
+
+	return to as DeepAssign<To, From>;
 }
 
 /**
