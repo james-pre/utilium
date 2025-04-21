@@ -347,7 +347,7 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	) {
 		const size =
 			byteLength
-			?? (view.constructor as any)?.[Symbol.metadata]?.struct?.size // Memium structs
+			?? (view.constructor as any)?.size // Memium types
 			?? buffer?.byteLength
 			?? 0;
 		view.buffer = buffer ?? (new ArrayBuffer(size) as T);
