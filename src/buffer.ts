@@ -327,6 +327,9 @@ export function toUint8Array(buffer: ArrayBufferLike | ArrayBufferView): Uint8Ar
 	return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 }
 
+/**
+ * @hidden @deprecated
+ */
 export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	view: Mutable<ArrayBufferView<T> & { BYTES_PER_ELEMENT?: number }>,
 	buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
@@ -374,20 +377,29 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 	}
 }
 
-/** Creates a view of an array buffer */
-export class BufferView<T extends ArrayBufferLike = ArrayBufferLike> implements ArrayBufferView<T> {
-	declare public readonly buffer: T;
-	declare public readonly byteOffset: number;
-	declare public readonly byteLength: number;
-
+/** A generic view of an array buffer */
+export class BufferView<T extends ArrayBufferLike = ArrayBuffer> extends DataView<T> implements ArrayBufferView<T> {
 	public constructor(
-		/** The buffer, view, or byte length to create the view from */
-		buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
-		byteOffset?: number,
-		byteLength?: number
+		_buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
+		_byteOffset?: number,
+		_byteLength?: number
 	) {
-		initView<T>(this, buffer, byteOffset, byteLength);
+		const { buffer, byteOffset, byteLength } = new Uint8Array<any>(_buffer, _byteOffset, _byteLength);
+		super(buffer, byteOffset, byteLength);
 	}
+}
+
+for (const key of Object.getOwnPropertyNames(DataView.prototype)) {
+	if (!key.startsWith('get') && !key.startsWith('set')) continue;
+
+	Object.defineProperty(BufferView.prototype, key, {
+		value: () => {
+			throw new ReferenceError('Do not use DataView methods on a BufferView.');
+		},
+		writable: false,
+		enumerable: false,
+		configurable: false,
+	});
 }
 
 BufferView satisfies ArrayBufferViewConstructor;
@@ -402,17 +414,17 @@ export function BufferViewArray<T extends ArrayBufferViewConstructor>(element: T
 		declare public readonly byteLength: number;
 
 		public constructor(
-			buffer?: TArrayBuffer | ArrayBufferView<TArrayBuffer> | ArrayLike<number>,
-			byteOffset?: number,
-			byteLength?: number
+			_buffer?: TArrayBuffer | ArrayBufferView<TArrayBuffer> | ArrayLike<number>,
+			_byteOffset?: number,
+			_byteLength?: number
 		) {
+			const { buffer, byteOffset, byteLength } = new Uint8Array<any>(_buffer, _byteOffset, _byteLength);
 			const length = (byteLength ?? size) / size;
 
 			if (!Number.isSafeInteger(length)) throw new Error('Invalid array length: ' + length);
 
 			super(length);
-
-			initView(this, buffer, byteOffset, byteLength);
+			Object.assign(this, { buffer, byteOffset, byteLength });
 
 			for (let i = 0; i < length; i++) {
 				this[i] = new element(this.buffer, this.byteOffset + i * size, size);
