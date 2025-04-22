@@ -378,7 +378,7 @@ export function initView<T extends ArrayBufferLike = ArrayBuffer>(
 }
 
 /** A generic view of an array buffer */
-export class BufferView<T extends ArrayBufferLike = ArrayBuffer> extends DataView<T> implements ArrayBufferView<T> {
+export class BufferView<T extends ArrayBufferLike = ArrayBufferLike> extends DataView<T> implements ArrayBufferView<T> {
 	public constructor(
 		_buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
 		_byteOffset?: number,
