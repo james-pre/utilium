@@ -195,6 +195,9 @@ interface SetOptions extends Options {
 
 	/** If a cache for the resource doesn't exist, this will be used as the full size */
 	size?: number;
+
+	/** The method to use for the request */
+	method?: 'POST' | 'PUT';
 }
 
 /**
@@ -208,9 +211,35 @@ export async function set(url: string, data: Uint8Array, options: SetOptions, in
 
 	const resource = resourcesCache.get(url)!;
 
-	const { offset = 0 } = options;
+	const { offset = 0, method = 'POST' } = options;
 
-	if (!options.cacheOnly) await _fetch(new Request(url, init), { method: 'POST' }, true);
+	// Skip the server request if we are only updating the cache
+	if (!options.cacheOnly) {
+		const headers = new Headers(init.headers || {});
+
+		if (!headers.get('Content-Type')) {
+			headers.set('Content-Type', 'application/octet-stream');
+		}
+
+		if (!headers.get('Content-Range') && (offset !== 0 || data.byteLength !== resource.size)) {
+			const start = offset;
+			const end = offset + data.byteLength - 1;
+			const total = Math.max(resource.size, end + 1);
+
+			headers.set('Content-Range', `bytes ${start}-${end}/${total}`);
+		}
+
+		await _fetch(
+			new Request(url, {
+				...init,
+				method,
+				headers,
+				body: data,
+			}),
+			{},
+			true
+		);
+	}
 
 	resource.add(data, offset);
 }
