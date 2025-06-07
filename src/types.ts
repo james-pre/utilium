@@ -233,6 +233,12 @@ export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
 export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
 
+export type InstancesFor<T extends ClassLike[]> = T extends []
+	? []
+	: T extends [infer C extends ClassLike, ...infer Rest extends ClassLike[]]
+		? [InstanceType<C>, ...InstancesFor<Rest>]
+		: never;
+
 export type Concrete<T extends ClassLike> = Pick<T, keyof T> & (new (...args: any[]) => InstanceType<T>);
 
 /**
