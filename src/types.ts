@@ -233,9 +233,9 @@ export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
 export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
 
-export type InstancesFor<T extends ClassLike[]> = T extends []
+export type InstancesFor<T extends readonly ClassLike[]> = T extends []
 	? []
-	: T extends [infer C extends ClassLike, ...infer Rest extends ClassLike[]]
+	: T extends [infer C extends ClassLike, ...infer Rest extends readonly ClassLike[]]
 		? [InstanceType<C>, ...InstancesFor<Rest>]
 		: never;
 
