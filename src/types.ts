@@ -239,6 +239,12 @@ export type InstancesFor<T extends readonly ClassLike[]> = T extends []
 		? [InstanceType<C>, ...InstancesFor<Rest>]
 		: never;
 
+export type ConstructorsFor<T extends readonly unknown[]> = T extends []
+	? []
+	: T extends readonly [infer I, ...infer Rest extends readonly unknown[]]
+		? [new (...args: any[]) => I, ...ConstructorsFor<Rest>]
+		: never;
+
 export type Concrete<T extends ClassLike> = Pick<T, keyof T> & (new (...args: any[]) => InstanceType<T>);
 
 /**
