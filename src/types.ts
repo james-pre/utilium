@@ -44,7 +44,7 @@ export type RequiredProperties<T extends object, K extends keyof T = keyof T> = 
  * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
  */
 export type DeepRequired<T> = {
-	[K in keyof T]: Required<DeepRequired<T[K]>>;
+	[K in keyof T]-?: DeepRequired<T[K]>;
 };
 
 /**
