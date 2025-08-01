@@ -26,8 +26,8 @@ const encoder = new TextEncoder();
 /**
  * Encodes a UTF-8 string into a buffer
  */
-export function encodeUTF8(input: string): Uint8Array {
-	return encoder.encode(input);
+export function encodeUTF8(input: string): Uint8Array<ArrayBuffer> {
+	return encoder.encode(input) as Uint8Array<ArrayBuffer>;
 }
 
 const decoder = new TextDecoder();
@@ -45,7 +45,7 @@ export function decodeUTF8(input?: Uint8Array): string {
 	return decoder.decode(buffer);
 }
 
-export function encodeASCII(input: string): Uint8Array {
+export function encodeASCII(input: string): Uint8Array<ArrayBuffer> {
 	const data = new Uint8Array(input.length);
 	for (let i = 0; i < input.length; i++) {
 		data[i] = input.charCodeAt(i);
@@ -70,7 +70,7 @@ export function decodeUUID(uuid: Uint8Array): UUID {
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-export function encodeUUID(uuid: UUID): Uint8Array {
+export function encodeUUID(uuid: UUID): Uint8Array<ArrayBuffer> {
 	const hex = uuid.replace(/-/g, '');
 	const data = new Uint8Array(16);
 	for (let i = 0; i < 16; i++) {
