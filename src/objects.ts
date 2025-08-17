@@ -160,18 +160,21 @@ export function map<const T extends Partial<Record<any, any>>>(items: T): Map<ke
 	return new Map(Object.entries(items) as [keyof T, T[keyof T]][]);
 }
 
-export function getByString(object: Record<string, any>, path: string, separator = /[.[\]'"]/) {
+export function getByString<T>(object: Record<string, any>, path: string, separator = /[.[\]'"]/): T {
 	return path
 		.split(separator)
-		.filter(p => p)
-		.reduce((o, p) => o?.[p], object);
+		.filter(p => p && p != '__proto__')
+		.reduce((o, p) => o?.[p], object) as T;
 }
 
-export function setByString(object: Record<string, any>, path: string, value: unknown, separator = /[.[\]'"]/) {
+export function setByString<T>(object: Record<string, any>, path: string, value: unknown, separator = /[.[\]'"]/): T {
 	return path
 		.split(separator)
-		.filter(p => p)
-		.reduce((o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}), object);
+		.filter(p => p && p != '__proto__')
+		.reduce(
+			(o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}),
+			object
+		) as T;
 }
 
 export type JSONPrimitive = null | string | number | boolean;
