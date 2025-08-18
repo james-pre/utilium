@@ -24,9 +24,9 @@ export function upload(type?: string, multiple = false): Promise<File> {
 /**
  * Downloads some data
  */
-export function download(data: BlobPart, name: string): void {
+export function download(name: string, ...parts: BlobPart[]): void {
 	const link = document.createElement('a');
-	link.href = URL.createObjectURL(new Blob([data]));
+	link.href = URL.createObjectURL(new Blob(parts));
 	link.download = name;
 	link.click();
 }
