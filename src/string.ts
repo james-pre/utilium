@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2025 James Prevett
 
-import type { $Max, $Subtract } from './type-math.js';
-import type { $drain } from './types.js';
+import type { $Max, w_subtract } from './type-math.js';
 
 export function capitalize<T extends string>(value: T): Capitalize<T> {
 	return (value.at(0)!.toUpperCase() + value.slice(1)) as Capitalize<T>;
@@ -107,19 +106,17 @@ export type Split<T extends string, Delimiter extends string = ''> = string exte
 
 export type StringLength<T extends string> = Split<T>['length'];
 
-export type Repeat<T extends string, N extends number, Init extends string = ''> = $drain<
-N extends 0
+export type Repeat<T extends string, N extends number, Init extends string = ''> = N extends 0
 	? Init
-	: Repeat<T, $Subtract<N, StringLength<T>>, `${Init}${T}`>
->;
+	: Repeat<T, w_subtract<N, StringLength<T>>, `${Init}${T}`>;
 
 export type PadRight<Init extends string, R extends string, N extends number> = Repeat<
 	R,
-	$Max<0, $Subtract<N, StringLength<Init>>>,
+	$Max<0, w_subtract<N, StringLength<Init>>>,
 	Init
 >;
 
 export type PadLeft<Init extends string, R extends string, N extends number> = `${Repeat<
 	R,
-	$Max<0, $Subtract<N, StringLength<Init>>>
+	$Max<0, w_subtract<N, StringLength<Init>>>
 >}${Init}`;

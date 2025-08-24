@@ -44,3 +44,8 @@ const int_normal: Integer<3.1415> = 3 as const;
 const int_negative: Integer<-3.1415> = -3 as const;
 const fraction_normal: Fraction<3.1415> = 0.1415 as const;
 const fraction_negative: Fraction<-3.1415> = 0.1415 as const;
+
+// With type variable
+
+const pi = 3.141 as const;
+const octo_pi: Multiply<typeof pi, 8> = 24.1128;

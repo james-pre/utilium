@@ -13,13 +13,13 @@
  *
  */
 
-import type { PadRight, Repeat, StringLength } from './string.js';
+import type { Repeat, StringLength } from './string.js';
 import type { $drain, Length } from './types.js';
 
 /**
  * Maps a numeric literal type to a tuple type with that length
  */
-type __tuple<L extends number, T extends any[] = []> = $drain<T extends { length: L } ? T : __tuple<L, [...T, any]>>;
+type __tuple<L extends number, T extends any[] = []> = T extends { length: L } ? T : __tuple<L, [...T, any]>;
 
 /**
  * Sum A and B (both must be whole numbers)
@@ -29,7 +29,7 @@ type w_add<A extends number, B extends number> = Length<[...__tuple<A>, ...__tup
 /**
  * Subtracts B from A (both must be whole numbers)
  */
-type w_subtract<A extends number, B extends number> =
+export type w_subtract<A extends number, B extends number> =
 	__tuple<A> extends [...infer U, ...__tuple<B>] ? Length<U> : never;
 
 /**
@@ -45,15 +45,14 @@ type _either_zero<A extends number, B extends number> = A extends 0 ? true : B e
 /**
  * Is A less than B? (whole numbers)
  */
-type w_less<A extends number, B extends number> = $drain<
+type w_less<A extends number, B extends number> =
 	_either_zero<A, B> extends true
 		? Equal<A, B> extends true
 			? false
 			: A extends 0
 				? true
 				: false
-		: w_less<w_subtract<A, 1>, w_subtract<B, 1>>
->;
+		: w_less<w_subtract<A, 1>, w_subtract<B, 1>>;
 
 /**
  * Negate *any* number.
@@ -75,6 +74,20 @@ type _is_int<N extends number> = `${N}` extends `${number}.${number}` ? false : 
 
 type _are_ints<A extends number, B extends number> =
 	_is_int<A> extends true ? (_is_int<B> extends true ? true : false) : false;
+
+/**
+ * While `i_sum` is just as convenient and also more robust, this has a depth of 1 instead of 3.
+ */
+type i_increment<N extends number, I extends number = 1> = `${N}` extends `-${infer Abs extends number}`
+	? Negate<w_add<Abs, I>>
+	: w_add<N, I>;
+
+/**
+ * While `i_sum` is just as convenient and also more robust, this has a depth of 1 instead of 3.
+ */
+type i_decrement<N extends number, I extends number = 1> = `${N}` extends `-${infer Abs extends number}`
+	? Negate<w_subtract<Abs, I>>
+	: w_subtract<N, I>;
 
 /**
  * Sum integers A and B.
@@ -113,23 +126,6 @@ export type $Add<A extends number, B extends number> = _are_ints<A, B> extends t
 export type $Subtract<A extends number, B extends number> = _are_ints<A, B> extends true ? i_sum<A, Negate<B>> : never;
 
 /**
- * Accumulative addition:
- * N: increment
- * I: iterations (>= 0)
- * A: sum
- */
-type _i_mul_accumulate<N extends number, I extends number, A extends number> = $drain<
-	I extends 0 ? A : _i_mul_accumulate<N, i_sum<I, -1>, i_sum<N, A>>
->;
-
-/**
- * Integer multiplication
- */
-type i_multiply<A extends number, B extends number> = `${B}` extends `-${infer B_abs extends number}`
-	? Negate<_i_mul_accumulate<A, B_abs, 0>>
-	: _i_mul_accumulate<A, B, 0>;
-
-/**
  * Is A less than B?
  * @internal
  */
@@ -140,7 +136,7 @@ type i_less<A extends number, B extends number> = $drain<
 			: A extends 0
 				? true
 				: false
-		: i_less<i_sum<A, -1>, i_sum<B, -1>>
+		: i_less<i_decrement<A>, i_decrement<B>>
 >;
 
 export type $LessThan<A extends number, B extends number> = _are_ints<A, B> extends true ? i_less<A, B> : never;
@@ -156,7 +152,7 @@ export type $Max<A extends number, B extends number> = _are_ints<A, B> extends t
  * Q: quotient
  */
 type w_divide<N extends number, D extends number, Q extends number> = $drain<
-	D extends 0 ? never : i_less<N, D> extends true ? Q : w_divide<i_sum<N, Negate<D>>, D, i_sum<Q, 1>>
+	D extends 0 ? never : i_less<N, D> extends true ? Q : w_divide<i_sum<N, Negate<D>>, D, i_increment<Q>>
 >;
 
 /**
@@ -169,11 +165,6 @@ type i_divide<A extends number, B extends number> = `${A}` extends `-${infer A_a
 	: `${B}` extends `-${infer B_abs extends number}`
 		? Negate<w_divide<A, B_abs, 0>>
 		: w_divide<A, B, 0>;
-
-/**
- * Integer multiplication
- */
-export type Multiply<A extends number, B extends number> = _are_ints<A, B> extends true ? i_multiply<A, B> : never;
 
 /**
  * Integer division
@@ -200,16 +191,14 @@ export type Fraction<N extends number> = `${N}` extends `${number}.${infer S ext
 		: never
 	: 0;
 
-type _f_padding_needed<A extends string, B extends string> =
-	i_sum<StringLength<A>, Negate<StringLength<B>>> extends 0 ? 0 : i_max<StringLength<A>, StringLength<B>>;
-
-type _f_sum_str<A_s extends string, B_s extends string> =
-	Repeat<'0', i_max<0, w_subtract<StringLength<B_s>, StringLength<A_s>>>, A_s> extends `${infer A_f extends number}`
-		? Repeat<
-				'0',
-				i_max<0, w_subtract<StringLength<A_s>, StringLength<B_s>>>,
-				B_s
-			> extends `${infer B_f extends number}`
+type _f_sum_str<
+	A_s extends string,
+	B_s extends string,
+	_A_len extends number = StringLength<A_s>,
+	_B_len extends number = StringLength<B_s>,
+> =
+	$drain<Repeat<'0', i_max<0, w_subtract<_B_len, _A_len>>, A_s>> extends `${infer A_f extends number}`
+		? $drain<Repeat<'0', i_max<0, w_subtract<_A_len, _B_len>>, B_s>> extends `${infer B_f extends number}`
 			? i_sum<A_f, B_f>
 			: never
 		: never;
@@ -235,13 +224,38 @@ type _sum_with_f<
 		: never
 	: never;
 
-export type Add<A extends number, B extends number> =
-	Fraction<A> extends 0
-		? Fraction<B> extends 0
-			? i_sum<A, B>
-			: _sum_with_f<A, B, Fraction<B>>
-		: Fraction<B> extends 0
-			? _sum_with_f<A, B, Fraction<A>>
-			: _sum_with_f<A, B, f_sum<Fraction<A>, Fraction<B>>>;
+export type Add<
+	A extends number,
+	B extends number,
+	__fA extends number = Fraction<A>,
+	__fB extends number = Fraction<B>,
+> = __fA extends 0
+	? __fB extends 0
+		? i_sum<A, B>
+		: _sum_with_f<A, B, __fB>
+	: __fB extends 0
+		? _sum_with_f<A, B, __fA>
+		: _sum_with_f<A, B, f_sum<__fA, __fB>>;
 
 export type Subtract<A extends number, B extends number> = Add<A, Negate<B>>;
+
+/**
+ * Accumulative addition:
+ * N: increment
+ * I: iterations (must be a whole number)
+ * A: sum
+ */
+type _mul_accumulate<N extends number, I extends number, A extends number> = $drain<
+	I extends 0 ? A : _mul_accumulate<N, i_decrement<I>, Add<N, A>>
+>;
+
+/**
+ * Multiplication.
+ *
+ * Current limitation: B must be an integer.
+ */
+export type Multiply<A extends number, B extends number> = `${B}` extends `${number}.${number}`
+	? never
+	: `${B}` extends `-${infer B_abs extends number}`
+		? Negate<_mul_accumulate<A, B_abs, 0>>
+		: _mul_accumulate<A, B, 0>;
