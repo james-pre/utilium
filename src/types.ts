@@ -193,3 +193,10 @@ export type LastOfUnion<T> = UnionToIntersection<T extends any ? () => T : never
 export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N
 	? []
 	: Push<UnionToTuple<Exclude<T, L>>, L>;
+
+/**
+ * Utility to reduce depth of TypeScript's internal type instantiation stack.
+ * Some wizard on the Kysely team came up with this.
+ * It improves performance for the math types by an order of magnitude.
+ */
+export type $drain<T> = [T] extends [unknown] ? T : never;
