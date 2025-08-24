@@ -30,6 +30,7 @@ const multiply_normal: Multiply<2, 3> = 6 as const;
 const multiply_by_zero: Multiply<0, 10> = 0 as const;
 const multiply_negative: Multiply<-1, 12> = -12 as const;
 const multiply_both_negative: Multiply<-3, -7> = 21 as const;
+const multiply_large: Multiply<128, 7> = 896 as const;
 
 // division
 
