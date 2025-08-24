@@ -1,4 +1,8 @@
-/* Shared eslint rules */
+// SPDX-License-Identifier: LGPL-3.0-or-later
+/**
+ * Shared eslint rules
+ * Copyright (c) 2025 James Prevett
+ */
 import eslint from '@eslint/js';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
