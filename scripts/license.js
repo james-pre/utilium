@@ -104,14 +104,18 @@ function check_dir(dir, display) {
 	return results;
 }
 
-if (!dirs.length) dirs.push(join(import.meta.dirname, '../src'));
+if (!dirs.length) {
+	console.error(styleText('red', 'No directories specified'));
+	process.exit(1);
+}
 
 if (verbose) console.log('Checking:', dirs.join(', '));
 
 const promises = [];
 
 for (const dir of dirs) {
-	promises.push(...check_dir(dir, relative(join(import.meta.dirname, '..'), dir)));
+	const rel = relative(process.cwd(), dir);
+	promises.push(...check_dir(dir, rel.startsWith('..') ? dir : rel));
 }
 
 const styles = Object.assign(Object.create(null), {

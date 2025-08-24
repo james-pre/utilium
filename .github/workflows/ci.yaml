@@ -29,6 +29,9 @@ jobs:
             - name: Formatting
               run: npm run format:check
 
+            - name: License check
+              run: npx lice src -L LGPL-3.0-or-later
+
             - name: Linting
               run: npm run lint
 
