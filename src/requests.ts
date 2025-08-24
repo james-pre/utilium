@@ -1,4 +1,9 @@
-/* Utilities for `fetch` when using range requests. It also allows you to handle errors easier */
+// SPDX-License-Identifier: LGPL-3.0-or-later
+/**
+ * Utilities for `fetch` when using range requests.
+ * It also allows you to handle errors easier
+ * Copyright (c) 2025 James Prevett
+ */
 
 import * as cache from './cache.js';
 

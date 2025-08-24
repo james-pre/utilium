@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
+
 export function range(min: number, max: number): number[] {
 	const a = [];
 	for (let i = min; i < max; i++) {

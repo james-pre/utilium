@@ -1,4 +1,8 @@
-/** A ranged cache */
+// SPDX-License-Identifier: LGPL-3.0-or-later
+/**
+ * A ranged cache
+ * Copyright (c) 2025 James Prevett
+ */
 import { extendBuffer } from './buffer.js';
 
 export interface Options {

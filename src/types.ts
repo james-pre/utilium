@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
+
+import type { Subtract } from './type-math.js';
+
 /**
  * Expands the type T (for intellisense and debugging)
  * @see https://stackoverflow.com/a/69288824/17637456
@@ -19,60 +24,6 @@ export type ExpandRecursively<T> = T extends (...args: infer A) => infer R
 			? { [K in keyof O]: ExpandRecursively<O[K]> }
 			: never
 		: T;
-
-/**
- * Extracts an object with properties assignable to P from an object T
- * @see https://stackoverflow.com/a/71532723/17637456
- */
-export type ExtractProperties<T, P> = {
-	[K in keyof T as T[K] extends infer Prop ? (Prop extends P ? K : never) : never]: T[K];
-};
-
-/**
- * Extract the keys of T which are required
- * @see https://stackoverflow.com/a/55247867/17637456
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export type RequiredKeys<T> = { [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K }[keyof T];
-
-/**
- * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
- */
-export type RequiredProperties<T extends object, K extends keyof T = keyof T> = Omit<T, K> & Required<Pick<T, K>>;
-
-/**
- * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
- */
-export type DeepRequired<T> = {
-	[K in keyof T]-?: DeepRequired<T[K]>;
-};
-
-/**
- * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
- */
-export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<T>;
-
-/**
- * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
- */
-export type NestedKeys<T extends object> = {
-	[P in keyof T & (string | number)]: T[P] extends Date
-		? `${P}`
-		: T[P] extends Record<string, unknown>
-			? `${P}` | `${P}.${NestedKeys<T[P]>}`
-			: `${P}`;
-}[keyof T & (string | number)];
-
-/**
- * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
- */
-export type PartialRecursive<T> = {
-	[P in keyof T]?: T[P] extends (infer U)[]
-		? PartialRecursive<U>[]
-		: T[P] extends object | undefined
-			? PartialRecursive<T[P]>
-			: T[P];
-};
 
 /**
  * Get the keys of a union of objects
@@ -142,7 +93,7 @@ export type Remove<A extends unknown[], B extends unknown[]> = Empty extends B ?
 /**
  * The length of T
  */
-export type Length<T extends { length: number }> = T['length'];
+export type Length<T extends unknown[]> = T extends { length: infer L extends number } ? L : never;
 
 type _FromLength<N extends number, R extends unknown[] = Empty> =
 	Length<R> extends N ? R : _FromLength<N, Unshift<R, 0>>;
@@ -156,23 +107,15 @@ export type FromLength<N extends number> = _FromLength<N>;
 
 /**
  * Increments N
+ * @deprecated Use Add<N, 1> instead
  */
 export type Increment<N extends number> = Length<Unshift<_FromLength<N>, 0>>;
 
 /**
  * Decrements N
+ * @deprecated Use Subtract<N, 1> instead
  */
-export type Decrement<N extends number> = Length<Shift<_FromLength<N>>>;
-
-/**
- * Gets the sum of A and B
- */
-export type Add<A extends number, B extends number> = Length<Concat<_FromLength<A>, _FromLength<B>>>;
-
-/**
- * Subtracts B from A
- */
-export type Subtract<A extends number, B extends number> = Length<Remove<_FromLength<A>, _FromLength<B>>>;
+export type Decrement<N extends number> = Subtract<N, 1>;
 
 /**
  * Gets the type of an array's members
@@ -180,7 +123,7 @@ export type Subtract<A extends number, B extends number> = Length<Remove<_FromLe
 export type Member<T, D = null> = D extends 0
 	? T
 	: T extends (infer U)[]
-		? Member<U, D extends number ? Decrement<D> : null>
+		? Member<U, D extends number ? Subtract<D, 1> : null>
 		: T;
 
 /**
@@ -231,22 +174,6 @@ export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer
  */
 export type MapKeys<T> = T extends Map<infer K, any> ? K : never;
 
-export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
-
-export type InstancesFor<T extends readonly ClassLike[]> = T extends []
-	? []
-	: T extends readonly [infer C extends ClassLike, ...infer Rest extends readonly ClassLike[]]
-		? [InstanceType<C>, ...InstancesFor<Rest>]
-		: never;
-
-export type ConstructorsFor<T extends readonly unknown[]> = T extends []
-	? []
-	: T extends readonly [infer I, ...infer Rest extends readonly unknown[]]
-		? [new (...args: any[]) => I, ...ConstructorsFor<Rest>]
-		: never;
-
-export type Concrete<T extends ClassLike> = Pick<T, keyof T> & (new (...args: any[]) => InstanceType<T>);
-
 /**
  * Converts a union to an intersection
  * @see https://stackoverflow.com/a/55128956/17637456
@@ -266,24 +193,3 @@ export type LastOfUnion<T> = UnionToIntersection<T extends any ? () => T : never
 export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true : false> = true extends N
 	? []
 	: Push<UnionToTuple<Exclude<T, L>>, L>;
-
-/**
- * Makes properties with keys assignable to K in T required
- * @see https://stackoverflow.com/a/69328045/17637456
- */
-export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
-
-/**
- * Makes properties with keys assignable to K in T optional
- */
-export type WithOptional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
-
-/**
- * Nothing in T
- */
-export type Never<T> = { [K in keyof T]?: never };
-
-/**
- * All of the properties in T or none of them
- */
-export type AllOrNone<T> = T | Never<T>;

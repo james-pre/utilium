@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
+
 export function capitalize<T extends string>(value: T): Capitalize<T> {
 	return (value.at(0)!.toUpperCase() + value.slice(1)) as Capitalize<T>;
 }

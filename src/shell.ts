@@ -1,4 +1,9 @@
-/* A simple wrapper for xterm.js that makes implementing shells easier */
+// SPDX-License-Identifier: LGPL-3.0-or-later
+/**
+ * A simple wrapper for xterm.js that makes implementing shells easier
+ * Copyright (c) 2025 James Prevett
+ */
+
 import type { Terminal } from '@xterm/xterm';
 
 export interface ShellOptions {

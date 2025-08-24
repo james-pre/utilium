@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
 export function randomFloat(min = 0, max = 1): number {
 	return Math.random() * (max - min) + min;
 }

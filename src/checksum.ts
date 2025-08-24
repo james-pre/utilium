@@ -1,4 +1,8 @@
-/** Utilities for computing checksums */
+// SPDX-License-Identifier: LGPL-3.0-or-later
+/**
+ * Utilities for computing checksums
+ * Copyright (c) 2025 James Prevett
+ */
 
 // Precompute CRC32C table
 const crc32cTable = new Uint32Array(256);

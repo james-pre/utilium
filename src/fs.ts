@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
+
 import { isJSON, type JSONValue } from './objects.js';
 import * as fs from 'fs';
 

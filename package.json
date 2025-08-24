@@ -15,6 +15,9 @@
 		"./eslint": "./eslint.shared.js",
 		"./typedoc-no-ref": "./scripts/typedoc-no-ref.js"
 	},
+	"bin": {
+		"lice": "./scripts/license.js"
+	},
 	"files": [
 		"dist",
 		"scripts",
@@ -31,7 +34,7 @@
 		"url": "git+https://github.com/james-pre/utilium.git"
 	},
 	"author": "James Prevett <jp@jamespre.dev> (https://jamespre.dev)",
-	"license": "MIT",
+	"license": "LGPL-3.0-or-later",
 	"bugs": {
 		"url": "https://github.com/james-pre/utilium/issues"
 	},

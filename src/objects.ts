@@ -1,4 +1,7 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type { Expand, UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(
@@ -209,3 +212,94 @@ export function bindFunctions<T extends object, This = any>(fns: T, thisValue: T
 export type Mutable<T> = {
 	-readonly [P in keyof T]: T[P];
 };
+
+/**
+ * Makes properties with keys assignable to K in T required
+ * @see https://stackoverflow.com/a/69328045/17637456
+ */
+export type WithRequired<T, K extends keyof T> = T & { [P in K]-?: T[P] };
+
+/**
+ * Makes properties with keys assignable to K in T optional
+ */
+export type WithOptional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
+
+export type ClassLike<Instance = any> = abstract new (...args: any[]) => Instance;
+
+export type InstancesFor<T extends readonly ClassLike[]> = T extends []
+	? []
+	: T extends readonly [infer C extends ClassLike, ...infer Rest extends readonly ClassLike[]]
+		? [InstanceType<C>, ...InstancesFor<Rest>]
+		: never;
+
+export type ConstructorsFor<T extends readonly unknown[]> = T extends []
+	? []
+	: T extends readonly [infer I, ...infer Rest extends readonly unknown[]]
+		? [new (...args: any[]) => I, ...ConstructorsFor<Rest>]
+		: never;
+
+export type Concrete<T extends ClassLike> = Pick<T, keyof T> & (new (...args: any[]) => InstanceType<T>);
+
+/**
+ * Extracts an object with properties assignable to P from an object T
+ * @see https://stackoverflow.com/a/71532723/17637456
+ */
+export type ExtractProperties<T, P> = {
+	[K in keyof T as T[K] extends infer Prop ? (Prop extends P ? K : never) : never]: T[K];
+};
+
+/**
+ * Extract the keys of T which are required
+ * @see https://stackoverflow.com/a/55247867/17637456
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type RequiredKeys<T> = { [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K }[keyof T];
+
+/**
+ * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
+ */
+export type RequiredProperties<T extends object, K extends keyof T = keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
+/**
+ * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
+ */
+export type DeepRequired<T> = {
+	[K in keyof T]-?: DeepRequired<T[K]>;
+};
+
+/**
+ * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
+ */
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<T>;
+
+/**
+ * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
+ */
+export type NestedKeys<T extends object> = {
+	[P in keyof T & (string | number)]: T[P] extends Date
+		? `${P}`
+		: T[P] extends Record<string, unknown>
+			? `${P}` | `${P}.${NestedKeys<T[P]>}`
+			: `${P}`;
+}[keyof T & (string | number)];
+
+/**
+ * @see https://dev.to/tmhao2005/ts-useful-advanced-types-3k5e
+ */
+export type PartialRecursive<T> = {
+	[P in keyof T]?: T[P] extends (infer U)[]
+		? PartialRecursive<U>[]
+		: T[P] extends object | undefined
+			? PartialRecursive<T[P]>
+			: T[P];
+};
+
+/**
+ * Nothing in T
+ */
+export type Never<T> = { [K in keyof T]?: never };
+
+/**
+ * All of the properties in T or none of them
+ */
+export type AllOrNone<T> = T | Never<T>;

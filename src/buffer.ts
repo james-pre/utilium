@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 
 import type { Mutable } from './objects.js';

@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright (c) 2025 James Prevett
+
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-base-to-string */
+
 export interface CreateLoggerOptions {
 	/**
 	 * The function used to output
