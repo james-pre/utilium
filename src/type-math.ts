@@ -194,21 +194,28 @@ export type Fraction<N extends number> = `${N}` extends `${number}.${infer S ext
 type _f_sum_str<
 	A_s extends string,
 	B_s extends string,
+	_A_neg extends boolean,
+	_B_neg extends boolean,
 	_A_len extends number = StringLength<A_s>,
 	_B_len extends number = StringLength<B_s>,
 > =
 	$drain<Repeat<'0', i_max<0, w_subtract<_B_len, _A_len>>, A_s>> extends `${infer A_f extends number}`
 		? $drain<Repeat<'0', i_max<0, w_subtract<_A_len, _B_len>>, B_s>> extends `${infer B_f extends number}`
-			? i_sum<A_f, B_f>
+			? i_sum<_A_neg extends true ? Negate<A_f> : A_f, _B_neg extends true ? Negate<B_f> : B_f>
 			: never
 		: never;
 
 /**
  * Sum the fractional parts A and B of two numbers
  */
-type f_sum<A extends number, B extends number> = `${A}` extends `0.${infer A_s extends string}`
+type f_sum<
+	A extends number,
+	B extends number,
+	_A_neg extends boolean,
+	_B_neg extends boolean,
+> = `${A}` extends `0.${infer A_s extends string}`
 	? `${B}` extends `0.${infer B_s extends string}`
-		? `0.${_f_sum_str<A_s, B_s>}` extends `${infer F extends number}`
+		? `0.${_f_sum_str<A_s, B_s, _A_neg, _B_neg>}` extends `${infer F extends number}`
 			? F
 			: never
 		: never
@@ -235,7 +242,7 @@ export type Add<
 		: _sum_with_f<A, B, __fB>
 	: __fB extends 0
 		? _sum_with_f<A, B, __fA>
-		: _sum_with_f<A, B, f_sum<__fA, __fB>>;
+		: _sum_with_f<A, B, f_sum<__fA, __fB, Is_Negative<A>, Is_Negative<B>>>;
 
 export type Subtract<A extends number, B extends number> = Add<A, Negate<B>>;
 

@@ -22,6 +22,7 @@ const subtract_normal: Subtract<2, 20> = -18 as const;
 const subtract_from_neg: Subtract<-5, 4> = -9 as const;
 const subtract_both_neg: Subtract<-5, -10> = 5 as const;
 const subtract_zero: Subtract<0, 1> = -1 as const;
+const subtract_floats: Subtract<5.5, 2.2> = 3.3 as const;
 
 // were doing multiplication in the type system now?!
 // yup.
