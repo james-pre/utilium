@@ -4,12 +4,12 @@
 
 import { readdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join, matchesGlob, relative } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 
 const {
 	positionals: dirs,
-	values: { license: expectedLicense, write, verbose, force },
+	values: { license: expectedLicense, write, verbose, force, exclude },
 } = parseArgs({
 	allowPositionals: true,
 	options: {
@@ -17,6 +17,7 @@ const {
 		write: { type: 'boolean', short: 'w', default: false },
 		verbose: { type: 'boolean', short: 'v', default: false },
 		force: { type: 'boolean', short: 'f', default: false },
+		exclude: { type: 'string', short: 'x', default: '' },
 	},
 });
 
@@ -28,6 +29,11 @@ if (write && !expectedLicense) {
 const licenseSpec = /^\s*\/(?:\/|\*) SPDX-License-Identifier: (.+)/;
 
 async function check_file(path, display) {
+	if (matchesGlob(path, exclude)) {
+		console.log(styleText('whiteBright', ' (skipped)'));
+		return 'skipped';
+	}
+
 	const content = await readFile(path, 'utf-8');
 
 	const match = licenseSpec.exec(content);
@@ -54,6 +60,11 @@ async function check_file(path, display) {
 }
 
 async function write_file(path, display) {
+	if (matchesGlob(path, exclude)) {
+		console.log(styleText('whiteBright', ' (skipped)'));
+		return 'skipped';
+	}
+
 	const content = await readFile(path, 'utf-8');
 
 	const match = licenseSpec.exec(content);

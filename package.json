@@ -16,7 +16,7 @@
 		"./typedoc-no-ref": "./scripts/typedoc-no-ref.js"
 	},
 	"bin": {
-		"lice": "./scripts/license.js"
+		"lice": "./scripts/lice.js"
 	},
 	"files": [
 		"dist",
