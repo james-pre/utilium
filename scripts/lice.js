@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2025 James Prevett
 
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { join, matchesGlob, relative } from 'node:path';
+import { dirname, join, matchesGlob, relative } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 
-const {
-	positionals: dirs,
-	values: { license: expectedLicense, write, verbose, force, exclude, help, auto },
-} = parseArgs({
+const { positionals: dirs, values: opts } = parseArgs({
 	allowPositionals: true,
 	options: {
 		auto: { type: 'boolean', short: 'a', default: false },
@@ -23,7 +20,7 @@ const {
 	},
 });
 
-if (help) {
+if (opts.help) {
 	console.error(`Usage: lice [options] <dirs...>
 
 Options:
@@ -38,13 +35,33 @@ Options:
 	process.exit(0);
 }
 
-if (write && !expectedLicense) {
-	console.error(styleText('red', 'You must specify a license to write with --license/-L'));
+/**
+ *
+ * @returns {string|null}
+ */
+function get_license() {
+	for (let dir = process.cwd(); dir != '/'; dir = dirname(dir)) {
+		const pkgPath = join(dir, 'package.json');
+		if (!existsSync(pkgPath)) continue;
+
+		const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+		if (pkg.spdx) return pkg.spdx;
+		if (pkg.spdxLicense) return pkg.spdxLicense;
+		if (pkg.license) return pkg.license;
+	}
+
+	return null;
+}
+
+const expectedLicense = opts.license || (opts.auto && get_license());
+
+if (opts.write && !expectedLicense) {
+	console.error(styleText('red', 'You must specify a license to write.'));
 	process.exit(1);
 }
 
 function should_exclude(path, display) {
-	for (const pattern of exclude) {
+	for (const pattern of opts.exclude) {
 		if (!matchesGlob(path, pattern)) continue;
 		console.log(styleText('whiteBright', 'Skipped:'), display);
 		return true;
@@ -68,14 +85,14 @@ async function check_file(path, display) {
 	}
 
 	if (!expectedLicense) {
-		if (verbose) console.log(styleText(['dim'], 'Found:'), display);
+		if (opts.verbose) console.log(styleText(['dim'], 'Found:'), display);
 		return 'with license';
 	}
 
 	const [, license] = match;
 
 	if (license == expectedLicense) {
-		if (verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
+		if (opts.verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
 		return 'correct';
 	}
 
@@ -100,13 +117,13 @@ async function write_file(path, display) {
 	const [, license] = match;
 
 	if (license == expectedLicense) {
-		if (verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
+		if (opts.verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
 		return 'correct';
 	}
 
 	process.stdout.write(styleText('yellow', 'Mismatch: ') + display);
 
-	if (!force) {
+	if (!opts.force) {
 		console.log(styleText('whiteBright', ' (skipped)'));
 		return 'skipped';
 	}
@@ -131,7 +148,7 @@ function check_dir(dir, display) {
 
 		if (!entry.isFile()) continue;
 
-		const op = write ? write_file : check_file;
+		const op = opts.write ? write_file : check_file;
 		results.push(op(join(dir, entry.name), join(display, entry.name)));
 	}
 
@@ -143,7 +160,7 @@ if (!dirs.length) {
 	process.exit(1);
 }
 
-if (verbose) console.log('Checking:', dirs.join(', '));
+if (opts.verbose) console.log('Checking:', dirs.join(', '));
 
 const promises = [];
 
@@ -170,7 +187,7 @@ try {
 		results[result]++;
 	}
 	console.log(
-		write ? 'Wrote' : 'Checked',
+		opts.write ? 'Wrote' : 'Checked',
 		styleText('blueBright', raw_results.length.toString()),
 		'files:',
 		Object.entries(results)
