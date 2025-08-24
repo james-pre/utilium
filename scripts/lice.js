@@ -9,30 +9,54 @@ import { parseArgs, styleText } from 'node:util';
 
 const {
 	positionals: dirs,
-	values: { license: expectedLicense, write, verbose, force, exclude },
+	values: { license: expectedLicense, write, verbose, force, exclude, help, auto },
 } = parseArgs({
 	allowPositionals: true,
 	options: {
-		license: { type: 'string', short: 'L' },
-		write: { type: 'boolean', short: 'w', default: false },
-		verbose: { type: 'boolean', short: 'v', default: false },
+		auto: { type: 'boolean', short: 'a', default: false },
+		exclude: { type: 'string', short: 'x', default: [], multiple: true },
 		force: { type: 'boolean', short: 'f', default: false },
-		exclude: { type: 'string', short: 'x', default: '' },
+		help: { type: 'boolean', short: 'h', default: false },
+		license: { type: 'string', short: 'l' },
+		verbose: { type: 'boolean', short: 'v', default: false },
+		write: { type: 'boolean', short: 'w', default: false },
 	},
 });
+
+if (help) {
+	console.error(`Usage: lice [options] <dirs...>
+
+Options:
+    -f, --force         Force overwrite of existing license headers
+    -h, --help          Show this help message
+    -a, --auto          Detect the SPDX identifier in package.json
+    -l, --license       Specify the SPDX license identifier to check for.
+    -v, --verbose       Enable verbose output
+    -w, --write         Write the license header if missing
+    -x, --exclude       Glob pattern to exclude files
+`);
+	process.exit(0);
+}
 
 if (write && !expectedLicense) {
 	console.error(styleText('red', 'You must specify a license to write with --license/-L'));
 	process.exit(1);
 }
 
+function should_exclude(path, display) {
+	for (const pattern of exclude) {
+		if (!matchesGlob(path, pattern)) continue;
+		console.log(styleText('whiteBright', 'Skipped:'), display);
+		return true;
+	}
+
+	return false;
+}
+
 const licenseSpec = /^\s*\/(?:\/|\*) SPDX-License-Identifier: (.+)/;
 
 async function check_file(path, display) {
-	if (matchesGlob(path, exclude)) {
-		console.log(styleText('whiteBright', 'Skipped:'), display);
-		return 'skipped';
-	}
+	if (should_exclude(path, display)) return 'skipped';
 
 	const content = await readFile(path, 'utf-8');
 
@@ -60,10 +84,7 @@ async function check_file(path, display) {
 }
 
 async function write_file(path, display) {
-	if (matchesGlob(path, exclude)) {
-		console.log(styleText('whiteBright', 'Skipped:'), display);
-		return 'skipped';
-	}
+	if (should_exclude(path, display)) return 'skipped';
 
 	const content = await readFile(path, 'utf-8');
 
@@ -96,6 +117,8 @@ async function write_file(path, display) {
 }
 
 function check_dir(dir, display) {
+	if (should_exclude(dir, display)) return 'skipped';
+
 	const entries = readdirSync(dir, { withFileTypes: true });
 
 	const results = [];
