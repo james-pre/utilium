@@ -30,7 +30,7 @@ jobs:
               run: npm run format:check
 
             - name: License check
-              run: npx lice src -L LGPL-3.0-or-later
+              run: npx lice src -a
 
             - name: Linting
               run: npm run lint
