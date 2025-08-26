@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2025 James Prevett
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, matchesGlob, relative } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 
-const { positionals: dirs, values: opts } = parseArgs({
+const { positionals: inputs, values: opts } = parseArgs({
 	allowPositionals: true,
 	options: {
 		auto: { type: 'boolean', short: 'a', default: false },
@@ -21,7 +21,7 @@ const { positionals: dirs, values: opts } = parseArgs({
 });
 
 if (opts.help) {
-	console.error(`Usage: lice [options] <dirs...>
+	console.error(`Usage: lice [options] <inputs...>
 
 Options:
     -f, --force         Force overwrite of existing license headers
@@ -133,40 +133,50 @@ async function write_file(path, display) {
 	return 'overwritten';
 }
 
-function check_dir(dir, display) {
+function* check_dir(dir, display) {
 	if (should_exclude(dir, display)) return 'skipped';
 
 	const entries = readdirSync(dir, { withFileTypes: true });
 
-	const results = [];
-
 	for (const entry of entries) {
 		if (entry.isDirectory()) {
-			results.push(...check_dir(join(dir, entry.name), join(display, entry.name)));
+			yield* check_dir(join(dir, entry.name), join(display, entry.name));
 			continue;
 		}
 
 		if (!entry.isFile()) continue;
 
 		const op = opts.write ? write_file : check_file;
-		results.push(op(join(dir, entry.name), join(display, entry.name)));
+		yield op(join(dir, entry.name), join(display, entry.name));
 	}
-
-	return results;
 }
 
-if (!dirs.length) {
-	console.error(styleText('red', 'No directories specified'));
+if (!inputs.length) {
+	console.error(styleText('red', 'No inputs specified'));
 	process.exit(1);
 }
 
-if (opts.verbose) console.log('Checking:', dirs.join(', '));
+const globbed = globSync(inputs);
+
+if (opts.verbose) console.log('Checking:', globbed.join(', '));
 
 const promises = [];
 
-for (const dir of dirs) {
-	const rel = relative(process.cwd(), dir);
-	promises.push(...check_dir(dir, rel.startsWith('..') ? dir : rel));
+for (const input of globbed) {
+	const rel = relative(process.cwd(), input);
+	if (should_exclude(input, rel)) {
+		promises.push(Promise.resolve('skipped'));
+		continue;
+	}
+
+	const stat = statSync(input);
+
+	if (stat.isDirectory()) {
+		for (const result of check_dir(input, rel)) promises.push(result);
+	} else {
+		const op = opts.write ? write_file : check_file;
+		promises.push(op(input, rel));
+	}
 }
 
 const styles = Object.assign(Object.create(null), {
