@@ -70,7 +70,7 @@ function should_exclude(path, display) {
 	return false;
 }
 
-const licenseSpec = /^\s*\/(?:\/|\*) SPDX-License-Identifier: (.+)/;
+const licenseSpec = /^([\s\/*!-]*)SPDX-License-Identifier: (.+)$/im;
 
 async function check_file(path, display) {
 	if (should_exclude(path, display)) return 'skipped';
@@ -89,7 +89,7 @@ async function check_file(path, display) {
 		return 'with license';
 	}
 
-	const [, license] = match;
+	const [, , license] = match;
 
 	if (license == expectedLicense) {
 		if (opts.verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
@@ -114,7 +114,7 @@ async function write_file(path, display) {
 		return 'added';
 	}
 
-	const [, license] = match;
+	const [full, whitespace, license] = match;
 
 	if (license == expectedLicense) {
 		if (opts.verbose) console.log(styleText(['green', 'dim'], 'Correct:'), display);
@@ -128,7 +128,7 @@ async function write_file(path, display) {
 		return 'skipped';
 	}
 
-	await writeFile(path, content.replace(licenseSpec, `// SPDX-License-Identifier: ${expectedLicense}`), 'utf-8');
+	await writeFile(path, content.replace(full, `${whitespace}SPDX-License-Identifier: ${expectedLicense}`), 'utf-8');
 	console.log(styleText('whiteBright', ' (overwritten)'));
 	return 'overwritten';
 }
