@@ -209,12 +209,7 @@ interface SetOptions extends Options {
  * Make a POST request to set (or create) data on the server and update the cache.
  * @throws RequestError
  */
-export async function set(
-	url: string,
-	data: Uint8Array<ArrayBuffer>,
-	options: SetOptions,
-	init: RequestInit = {}
-): Promise<void> {
+export async function set(url: string, data: Uint8Array, options: SetOptions, init: RequestInit = {}): Promise<void> {
 	if (!resourcesCache.has(url)) {
 		new cache.Resource(url, options.size ?? data.byteLength, options, resourcesCache);
 	}
@@ -244,7 +239,7 @@ export async function set(
 				...init,
 				method,
 				headers,
-				body: data,
+				body: data.buffer instanceof ArrayBuffer ? (data as Uint8Array<ArrayBuffer>) : Uint8Array.from(data),
 			}),
 			{},
 			true
