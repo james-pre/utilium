@@ -25,6 +25,9 @@ export function pick<T extends object, K extends keyof T>(
 	return picked;
 }
 
+/** @see https://github.com/microsoft/TypeScript/issues/49656 */
+export type Omit<T, K extends PropertyKey> = { [P in keyof T as Exclude<P, K>]: T[P] };
+
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly K[]): Omit<T, K>;
 export function omit<T extends object, K extends keyof T>(object: T, ...keys: readonly (readonly K[])[]): Omit<T, K>;
 export function omit<T extends object, K extends keyof T>(
