@@ -217,6 +217,16 @@ export type Mutable<T> = {
 };
 
 /**
+ * Makes all properties in T readonly recursively
+ */
+export type ReadonlyRecursive<T> = T extends object ? { readonly [K in keyof T]: ReadonlyRecursive<T[K]> } : T;
+
+/**
+ * Makes all properties in T mutable recursively
+ */
+export type MutableRecursive<T> = T extends object ? { -readonly [P in keyof T]: MutableRecursive<T[P]> } : T;
+
+/**
  * Makes properties with keys assignable to K in T required
  * @see https://stackoverflow.com/a/69328045/17637456
  */
@@ -306,3 +316,9 @@ export type Never<T> = { [K in keyof T]?: never };
  * All of the properties in T or none of them
  */
 export type AllOrNone<T> = T | Never<T>;
+
+export type Filter<Key, Arr extends readonly any[]> = Arr extends readonly [infer L, ...infer R]
+	? L extends Key
+		? Filter<Key, R>
+		: [L, ...Filter<Key, R>]
+	: [];
