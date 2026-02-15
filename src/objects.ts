@@ -105,7 +105,7 @@ export function deepAssign<To extends object, From extends object>(
 		}
 
 		if (isObject(to[key]) && Object(value) === value) {
-			deepAssign(to[key], value);
+			deepAssign(to[key], value, treatArraysAsPrimitives);
 			continue;
 		}
 
