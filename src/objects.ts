@@ -98,7 +98,7 @@ export function deepAssign<To extends object, From extends object>(
 
 		if (
 			(!isObject(to[key]) && Object(value) !== value)
-			|| (treatArraysAsPrimitives && Array.isArray(value) && !Array.isArray(to[key]))
+			|| (treatArraysAsPrimitives && (Array.isArray(value) || Array.isArray(to[key])))
 		) {
 			to[key] = value;
 			continue;
