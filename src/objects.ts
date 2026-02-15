@@ -76,7 +76,11 @@ export type DeepAssign<To extends object, From extends object> = {
 		: From[K & keyof From]; // (none) <- ?
 };
 
-export function deepAssign<To extends object, From extends object>(to: To, from: From): DeepAssign<To, From> {
+export function deepAssign<To extends object, From extends object>(
+	to: To,
+	from: From,
+	treatArraysAsPrimitives = false
+): DeepAssign<To, From> {
 	const keys = new Set<keyof To | keyof From>([
 		...(Object.keys(to) as (keyof To)[]),
 		...(Object.keys(from) as (keyof From)[]),
@@ -92,7 +96,10 @@ export function deepAssign<To extends object, From extends object>(to: To, from:
 			continue;
 		}
 
-		if (!isObject(to[key]) && Object(value) !== value) {
+		if (
+			(!isObject(to[key]) && Object(value) !== value)
+			|| (treatArraysAsPrimitives && Array.isArray(value) && !Array.isArray(to[key]))
+		) {
 			to[key] = value;
 			continue;
 		}
