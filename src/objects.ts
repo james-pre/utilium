@@ -2,8 +2,10 @@
 // Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import type { FilterOut } from './array.js';
 import { _throw } from './misc.js';
-import type { Expand, UnionToTuple } from './types.js';
+import type { Split } from './string.js';
+import type { $drain, Expand, UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(
 	object: O,
@@ -184,27 +186,80 @@ export function map<const T extends Partial<Record<any, any>>>(items: T): Map<ke
  * ```
  */
 export type FlattenKeys<O> = {
-	[K in keyof O & (string | number)]: O[K] extends Record<any, any> ? K | `${K}.${FlattenKeys<O[K]>}` : K;
-}[O extends readonly any[] ? keyof O & `${number}` : keyof O & (string | number)];
+	// Here be dragons: removing $drain causes TS/TSC to crash with OOM
+	[K in keyof O & (string | number)]: O[K] extends Record<any, any> ? K | `${K}.${$drain<FlattenKeys<O[K]>>}` : K;
+}[O extends readonly unknown[] ? keyof O & `${number}` : keyof O & (string | number)];
 
 const keySeparator = /[.[\]]/;
-type KeySeparator = '.' | '[' | ']';
+export type KeySeparator = '.' | '[' | ']';
 
-export type GetByString<
+type GetByPath<Data, Path extends (string | number)[]> = Path extends [
+	infer Key extends keyof Data | '__proto__',
+	...infer Rest extends (string | number)[],
+]
+	? Key extends '__proto__'
+		? never
+		: Rest extends []
+			? Data[Key & keyof Data]
+			: GetByPath<Data[Key & keyof Data], Rest>
+	: undefined;
+
+/**
+ * Get a value using a path of property keys.
+ *
+ * @see {@link getByString}
+ *
+ * @example
+ * ```ts
+ * interface Duck {
+ * 	taxonomy: {
+ * 		genus: 'anas';
+ * 		species: 'platyrhynchos';
+ * 	};
+ * }
+ *
+ * type DuckSpecies = GetByString<Duck, 'taxonomy.species'>; // 'platyrhynchos'
+ * ```
+ */
+export type GetByString<Data, Path extends string | number = FlattenKeys<Data>> = GetByPath<
 	Data,
-	Path extends string | number = FlattenKeys<Data>,
-> = Path extends `__proto__${`${KeySeparator}${string | number}` | ''}`
-	? never
-	: Path extends `${KeySeparator}${infer Rest}`
-		? GetByString<Data, Rest>
-		: Path extends `${infer Rest}${KeySeparator}`
-			? GetByString<Data, Rest>
-			: Path extends `${infer Key extends keyof Data & (string | number)}${KeySeparator}${infer Rest}`
-				? GetByString<Data[Key], Rest>
-				: Path extends keyof Data & (string | number)
-					? Data[Path]
-					: undefined;
+	FilterOut<Split<`${Path}`, KeySeparator>, ''>
+>;
 
+/**
+ * Get a value using a path of property keys.
+ *
+ * @example
+ * Translation keys mapping to locale objects
+ * ```ts
+ * const locale = {
+ * 	preference: {
+ * 		theme: {
+ * 			label: 'Theme'
+ * 		}
+ * 	}
+ * } as const;
+ *
+ * const text = getByString(locale, 'preference.theme.label'); // 'Theme'
+ * ```
+ *
+ * @example
+ * Arrays
+ * ```ts
+ * const pascal = {
+ * 	triangle: [
+ * 		[1],
+ * 		[1, 1],
+ * 		[1, 2, 1],
+ * 		[1, 3, 3, 1],
+ * 		[1, 4, 6, 4, 1]
+ * 	]
+ * } as const;
+ *
+ * const row3 = getByString(pascal, 'triangle[3]'); // readonly [1, 3, 3, 1]
+ * const r4c3 = getByString(pascal, 'triangle[4][2]'); // 6
+ * ```
+ */
 export function getByString<const T, const P extends string | number = FlattenKeys<T>>(
 	object: T,
 	path: P
@@ -219,7 +274,7 @@ export function getByString<const T, const P extends string | number = FlattenKe
 		);
 }
 
-export function setByString<const T, const P extends string | number = FlattenKeys<T>, const V>(
+export function setByString<const V, const T, const P extends string | number = FlattenKeys<T>>(
 	object: T,
 	path: P,
 	value: V
@@ -228,7 +283,7 @@ export function setByString<const T, const P extends string | number = FlattenKe
 		.toString()
 		.split(keySeparator)
 		.filter(p => p);
-	return parts.reduce((o, p, i) => {
+	return parts.reduce<T | V>((o: any, p, i) => {
 		if (p == '__proto__') throw new Error('setByString called with __proto__ in path');
 		return (o[p] = parts.length === i + 1 ? value : o[p] || {});
 	}, object) as V;
@@ -367,9 +422,3 @@ export type Never<T> = { [K in keyof T]?: never };
  * All of the properties in T or none of them
  */
 export type AllOrNone<T> = T | Never<T>;
-
-export type Filter<Key, Arr extends readonly any[]> = Arr extends readonly [infer L, ...infer R]
-	? L extends Key
-		? Filter<Key, R>
-		: [L, ...Filter<Key, R>]
-	: [];
