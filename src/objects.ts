@@ -174,9 +174,44 @@ export function map<const T extends Partial<Record<any, any>>>(items: T): Map<ke
 	return new Map(Object.entries(items) as [keyof T, T[keyof T]][]);
 }
 
-export function getByString<T, P extends string>(object: T, path: P, separator = /[.[\]'"]/): GetByString<T, P> {
+/**
+ * Flatten an object structure into a set of "keys".
+ *
+ * @example
+ * ```ts
+ * type example = FlattenKeys<{ h: { s: { l: 1; v: 2 } } }>;
+ * type result = "h" | "h.s" | "h.s.l" | "h.s.v";
+ * ```
+ */
+export type FlattenKeys<O> = {
+	[K in keyof O & (string | number)]: O[K] extends Record<any, any> ? K | `${K}.${FlattenKeys<O[K]>}` : K;
+}[O extends readonly any[] ? keyof O & `${number}` : keyof O & (string | number)];
+
+const keySeparator = /[.[\]]/;
+type KeySeparator = '.' | '[' | ']';
+
+export type GetByString<
+	Data,
+	Path extends string | number = FlattenKeys<Data>,
+> = Path extends `__proto__${`${KeySeparator}${string | number}` | ''}`
+	? never
+	: Path extends `${KeySeparator}${infer Rest}`
+		? GetByString<Data, Rest>
+		: Path extends `${infer Rest}${KeySeparator}`
+			? GetByString<Data, Rest>
+			: Path extends `${infer Key extends keyof Data & (string | number)}${KeySeparator}${infer Rest}`
+				? GetByString<Data[Key], Rest>
+				: Path extends keyof Data & (string | number)
+					? Data[Path]
+					: undefined;
+
+export function getByString<const T, const P extends string | number = FlattenKeys<T>>(
+	object: T,
+	path: P
+): GetByString<T, P> {
 	return path
-		.split(separator)
+		.toString()
+		.split(keySeparator)
 		.filter(p => p)
 		.reduce(
 			(o: any, p) => (p == '__proto__' ? _throw(new Error('getByString called with __proto__ in path')) : o?.[p]),
@@ -184,27 +219,19 @@ export function getByString<T, P extends string>(object: T, path: P, separator =
 		);
 }
 
-export type GetByString<
-	Data,
-	Path extends string,
-> = Path extends `__proto__${`${'.' | '[' | ']' | "'" | '"'}${string}` | ''}`
-	? never
-	: Path extends `${infer Key extends keyof Data & (string | number)}${'.' | '[' | ']' | "'" | '"'}${infer Rest}`
-		? Key extends ''
-			? GetByString<Data, Rest>
-			: GetByString<Data[Key], Rest>
-		: Path extends keyof Data & (string | number)
-			? Data[Path]
-			: undefined;
-
-export function setByString<T>(object: Record<string, any>, path: string, value: unknown, separator = /[.[\]'"]/): T {
-	return path
-		.split(separator)
-		.filter(p => p && p != '__proto__')
-		.reduce(
-			(o, p, i) => (o[p] = path.split(separator).filter(p => p).length === ++i ? value : o[p] || {}),
-			object
-		) as T;
+export function setByString<const T, const P extends string | number = FlattenKeys<T>, const V>(
+	object: T,
+	path: P,
+	value: V
+): V {
+	const parts = path
+		.toString()
+		.split(keySeparator)
+		.filter(p => p);
+	return parts.reduce((o, p, i) => {
+		if (p == '__proto__') throw new Error('setByString called with __proto__ in path');
+		return (o[p] = parts.length === i + 1 ? value : o[p] || {});
+	}, object) as V;
 }
 
 export type JSONPrimitive = null | string | number | boolean;
