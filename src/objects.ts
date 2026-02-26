@@ -2,6 +2,7 @@
 // Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { _throw } from './misc.js';
 import type { Expand, UnionToTuple } from './types.js';
 
 export function filterObject<O extends object, R extends object>(
@@ -173,11 +174,14 @@ export function map<const T extends Partial<Record<any, any>>>(items: T): Map<ke
 	return new Map(Object.entries(items) as [keyof T, T[keyof T]][]);
 }
 
-export function getByString<T>(object: Record<string, any>, path: string, separator = /[.[\]'"]/): T {
+export function getByString<T, P extends string>(object: T, path: P, separator = /[.[\]'"]/): GetByString<T, P> {
 	return path
 		.split(separator)
-		.filter(p => p && p != '__proto__')
-		.reduce((o, p) => o?.[p], object) as T;
+		.filter(p => p)
+		.reduce(
+			(o: any, p) => (p == '__proto__' ? _throw(new Error('getByString called with __proto__ in path')) : o?.[p]),
+			object
+		);
 }
 
 export type GetByString<
