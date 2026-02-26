@@ -180,6 +180,19 @@ export function getByString<T>(object: Record<string, any>, path: string, separa
 		.reduce((o, p) => o?.[p], object) as T;
 }
 
+export type GetByString<
+	Data,
+	Path extends string,
+> = Path extends `__proto__${`${'.' | '[' | ']' | "'" | '"'}${string}` | ''}`
+	? never
+	: Path extends `${infer Key extends keyof Data & (string | number)}${'.' | '[' | ']' | "'" | '"'}${infer Rest}`
+		? Key extends ''
+			? GetByString<Data, Rest>
+			: GetByString<Data[Key], Rest>
+		: Path extends keyof Data & (string | number)
+			? Data[Path]
+			: undefined;
+
 export function setByString<T>(object: Record<string, any>, path: string, value: unknown, separator = /[.[\]'"]/): T {
 	return path
 		.split(separator)
