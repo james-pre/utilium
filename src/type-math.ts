@@ -13,8 +13,9 @@
  *
  */
 
+import type { Length } from './array.js';
 import type { Repeat, StringLength } from './string.js';
-import type { $drain, Length } from './types.js';
+import type { $drain } from './types.js';
 
 /**
  * Maps a numeric literal type to a tuple type with that length

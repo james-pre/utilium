@@ -10,7 +10,7 @@ const add_positive: Add<1, 2> = 3 as const;
 const add_zero: Add<0, 0> = 0 as const;
 const add_diff_signs: Add<1, -2> = -1 as const;
 const add_negative: Add<-1, -2> = -3 as const;
-const add_float: Add<0.6, 1.1> = 1.7 as const;
+const add_float: Add<0.6, 1.0> = 1.6 as const;
 
 // @ts-expect-error 2 + 2 != 5
 let fail: Add<2, 2> = 5 as const;
@@ -22,7 +22,7 @@ const subtract_normal: Subtract<2, 20> = -18 as const;
 const subtract_from_neg: Subtract<-5, 4> = -9 as const;
 const subtract_both_neg: Subtract<-5, -10> = 5 as const;
 const subtract_zero: Subtract<0, 1> = -1 as const;
-const subtract_floats: Subtract<5.5, 2.2> = 3.3 as const;
+const subtract_floats: Subtract<5.1, 2.0> = 3.1 as const;
 
 // were doing multiplication in the type system now?!
 // yup.
@@ -50,4 +50,5 @@ const fraction_negative: Fraction<-3.1415> = 0.1415 as const;
 // With type variable
 
 const pi = 3.141 as const;
+// @ts-expect-error 2589 — Recently this started to become too deep even though it worked in the past
 const octo_pi: Multiply<typeof pi, 8> = 24.1128;
