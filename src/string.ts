@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2025 James Prevett
 
+import type { Some } from './array.js';
 import type { $Max, w_subtract } from './type-math.js';
 
 export function capitalize<T extends string>(value: T): Capitalize<T> {
@@ -94,15 +95,26 @@ export function parseUUID(uuid: UUID): bigint {
 }
 
 /**
+ * Used to support union delimiters, e.g. `'.' | ':'`
+ */
+type _SplitVariant<
+	T extends string,
+	CurrentDelim extends Delimiter,
+	Delimiter extends string = '',
+> = T extends `${infer Left}${CurrentDelim}${infer Right}` ? [Left, ...Split<Right, Delimiter>] : [T];
+
+/**
  * Split a string.
  */
 export type Split<T extends string, Delimiter extends string = ''> = string extends T
 	? string[]
 	: T extends ''
-		? []
-		: T extends `${infer Left}${Delimiter}${infer Right}`
-			? [Left, ...Split<Right, Delimiter>]
-			: [T];
+		? ['']
+		: {
+				[D in Delimiter]: Some<_SplitVariant<T, D, Delimiter>, `${string}${Delimiter}${string}`> extends true
+					? never
+					: _SplitVariant<T, D, Delimiter>;
+			}[Delimiter];
 
 export type StringLength<T extends string> = Split<T>['length'];
 
@@ -120,3 +132,6 @@ export type PadLeft<Init extends string, R extends string, N extends number> = `
 	R,
 	$Max<0, w_subtract<N, StringLength<Init>>>
 >}${Init}`;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type NonEmptyString = `${any}${string}`;
