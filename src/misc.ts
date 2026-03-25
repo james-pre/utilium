@@ -62,7 +62,7 @@ export function _throw(e: unknown): never {
 export function memoize<T, This extends object>(get: () => T, context: ClassGetterDecoratorContext<This, T>): () => T;
 export function memoize<T, This extends object>(
 	value: { get(): T; set(value: T): void },
-	context: ClassGetterDecoratorContext<This, T>
+	context: ClassAccessorDecoratorContext<This, T>
 ): { get(): T; set(value: T): void };
 export function memoize<T, This extends object>(
 	value: (() => T) | { get(): T; set(value: T): void },
