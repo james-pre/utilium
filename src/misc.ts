@@ -59,28 +59,20 @@ export function _throw(e: unknown): never {
 	throw e;
 }
 
-interface MemoizeMetadata extends DecoratorMetadata {
-	memoized?: Record<PropertyKey, any>;
-}
+const missing = Symbol('not memoized');
 
 /**
  * Decorator for memoizing the result of a getter.
  */
-export function memoize<T, This>(
-	get: () => T,
-	context: ClassGetterDecoratorContext<This, T> & { metadata?: MemoizeMetadata }
-) {
+export function memoize<T, This>(get: () => T, context: ClassGetterDecoratorContext<This, T>) {
 	if (context.kind != 'getter') throw new Error('@memoize can only be used on getters');
 
+	let value: T | typeof missing = missing;
 	return function (this: This): T {
-		context.metadata ??= {};
-		const { memoized = {} } = context.metadata;
-
-		if (context.name in memoized) {
-			console.log('Using cached value for', context.name, JSON.stringify(memoized[context.name]));
-			return memoized[context.name];
+		if (value !== missing) {
+			return value;
 		}
-		memoized[context.name] = get.call(this);
-		return memoized[context.name];
+		value = get.call(this);
+		return value;
 	};
 }
