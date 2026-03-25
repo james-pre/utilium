@@ -75,7 +75,7 @@ export function memoize<T, This extends object>(
 
 	function get(this: This): T {
 		if (cache.has(this)) return cache.get(this)!;
-		const result = context.access.get(this);
+		const result = typeof value === 'function' ? value.call(this) : value.get.call(this);
 		cache.set(this, result);
 		return result;
 	}
