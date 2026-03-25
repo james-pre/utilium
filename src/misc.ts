@@ -59,15 +59,31 @@ export function _throw(e: unknown): never {
 	throw e;
 }
 
-export function memoize<T, This extends object>(get: () => T, context: ClassGetterDecoratorContext<This, T>) {
-	if (context.kind != 'getter') throw new Error('@memoize can only be used on getters');
+export function memoize<T, This extends object>(get: () => T, context: ClassGetterDecoratorContext<This, T>): () => T;
+export function memoize<T, This extends object>(
+	value: { get(): T; set(value: T): void },
+	context: ClassGetterDecoratorContext<This, T>
+): { get(): T; set(value: T): void };
+export function memoize<T, This extends object>(
+	value: (() => T) | { get(): T; set(value: T): void },
+	context: ClassGetterDecoratorContext<This, T> | ClassAccessorDecoratorContext<This, T>
+) {
+	if (!['getter', 'accessor'].includes(context.kind))
+		throw new Error('@memoize can only be used on getters and auto-accessors');
 
 	const cache = new WeakMap<This, T>();
 
-	return function (this: This): T {
+	function get(this: This): T {
 		if (cache.has(this)) return cache.get(this)!;
-		const result = get.call(this);
+		const result = context.access.get(this);
 		cache.set(this, result);
 		return result;
-	};
+	}
+
+	switch (context.kind) {
+		case 'getter':
+			return get;
+		case 'accessor':
+			return { ...value, get };
+	}
 }
