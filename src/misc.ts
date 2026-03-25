@@ -59,28 +59,15 @@ export function _throw(e: unknown): never {
 	throw e;
 }
 
-interface MemoizeMetadata extends DecoratorMetadata {
-	memoized?: Record<PropertyKey, any>;
-}
-
-/**
- * Decorator for memoizing the result of a getter.
- */
-export function memoize<T, This>(
-	get: () => T,
-	context: ClassGetterDecoratorContext<This, T> & { metadata?: MemoizeMetadata }
-) {
+export function memoize<T, This extends object>(get: () => T, context: ClassGetterDecoratorContext<This, T>) {
 	if (context.kind != 'getter') throw new Error('@memoize can only be used on getters');
 
-	return function (this: This): T {
-		context.metadata ??= {};
-		const { memoized = {} } = context.metadata;
+	const cache = new WeakMap<This, T>();
 
-		if (context.name in memoized) {
-			console.log('Using cached value for', context.name, JSON.stringify(memoized[context.name]));
-			return memoized[context.name];
-		}
-		memoized[context.name] = get.call(this);
-		return memoized[context.name];
+	return function (this: This): T {
+		if (cache.has(this)) return cache.get(this)!;
+		const result = get.call(this);
+		cache.set(this, result);
+		return result;
 	};
 }

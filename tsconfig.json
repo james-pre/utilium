@@ -8,7 +8,9 @@
 		"noImplicitThis": true,
 		"declaration": true,
 		"isolatedModules": true,
-		"strict": true
+		"strict": true,
+		"rootDir": "src",
+		"types": ["node"]
 	},
 	"typedocOptions": {
 		"entryPoints": ["src/index.ts"],
