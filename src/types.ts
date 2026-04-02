@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2025 James Prevett
 
-import type { Length, Unshift, Push, FromLength } from './array.js';
-import type { Subtract } from './type-math.js';
+import type { Push } from './array.js';
 
 /**
  * Expands the type T (for intellisense and debugging)
@@ -42,18 +41,6 @@ type StrictUnionHelper<T, TAll> = T extends unknown
 export type StrictUnion<T> = Expand<StrictUnionHelper<T, T>>;
 
 // compile-time math
-
-/**
- * Increments N
- * @deprecated Use Add<N, 1> instead
- */
-export type Increment<N extends number> = Length<Unshift<FromLength<N>, 0>>;
-
-/**
- * Decrements N
- * @deprecated Use Subtract<N, 1> instead
- */
-export type Decrement<N extends number> = Subtract<N, 1>;
 
 /**
  * Keys of a Map

@@ -7,19 +7,6 @@
 
 import * as cache from './cache.js';
 
-// Compatibility
-
-/** @deprecated Use `cache.Options` */
-export type ResourceCacheOptions = cache.Options;
-/** @deprecated Use `cache.Resource` */
-export const ResourceCache = cache.Resource;
-/** @deprecated Use `cache.Resource` */
-export type ResourceCache = cache.Resource<string>;
-/** @deprecated Use `cache.Range` */
-export type CacheRange = cache.Range;
-/** @deprecated Use `cache.Options` */
-export type CacheOptions = cache.Options;
-
 /* eslint-disable @typescript-eslint/only-throw-error */
 
 /**
@@ -32,11 +19,6 @@ export type Issue =
 	| { tag: 'buffer'; response: Response; message: string }
 	| { tag: 'fetch' | 'size'; message: string }
 	| Error;
-
-/**
- * @deprecated Use `Issue`
- */
-export type RequestError = Issue;
 
 interface Fetched<TBodyOptional extends boolean> {
 	response: Response;
@@ -70,11 +52,6 @@ export interface Options extends cache.Options {
 	/** Optionally provide a function for logging warnings */
 	warn?(message: string): unknown;
 }
-
-/**
- * @deprecated Use `Options`
- */
-export type RequestOptions = Options;
 
 export interface GetOptions extends Options {
 	/**
@@ -145,11 +122,6 @@ export async function get(url: string, options: GetOptions, init: RequestInit = 
 	const region = resource.regionAt(start)!;
 	return region.data.subarray(start - region.offset, end - region.offset);
 }
-
-/**
- * @deprecated Use `get`
- */
-export const GET = get;
 
 /**
  * Synchronously gets a cached resource

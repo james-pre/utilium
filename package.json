@@ -11,7 +11,7 @@
 	"type": "module",
 	"exports": {
 		".": "./dist/index.js",
-		"./*": "./dist/*",
+		"./*": "./dist/*.js",
 		"./eslint": "./eslint.shared.js"
 	},
 	"bin": {

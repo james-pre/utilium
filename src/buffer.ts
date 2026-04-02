@@ -2,8 +2,6 @@
 // Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 
-import type { Mutable } from './objects.js';
-
 /**
  * A generic constructor for an `ArrayBufferView`
  */
@@ -327,56 +325,6 @@ export function toUint8Array(buffer: ArrayBufferLike | ArrayBufferView): Uint8Ar
 	if (buffer instanceof Uint8Array) return buffer;
 	if (!ArrayBuffer.isView(buffer)) return new Uint8Array(buffer);
 	return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-}
-
-/**
- * @hidden @deprecated
- */
-export function initView<T extends ArrayBufferLike = ArrayBuffer>(
-	view: Mutable<ArrayBufferView<T> & { BYTES_PER_ELEMENT?: number }>,
-	buffer?: T | ArrayBufferView<T> | ArrayLike<number> | number,
-	byteOffset?: number,
-	byteLength?: number
-) {
-	if (typeof buffer == 'number') {
-		view.buffer = new ArrayBuffer(buffer) as T;
-		view.byteOffset = 0;
-		view.byteLength = buffer;
-		return;
-	}
-
-	if (
-		!buffer
-		|| buffer instanceof ArrayBuffer
-		|| (globalThis.SharedArrayBuffer && buffer instanceof SharedArrayBuffer)
-	) {
-		const size =
-			byteLength
-			?? (view.constructor as any)?.size // Memium types
-			?? buffer?.byteLength
-			?? 0;
-		view.buffer = buffer ?? (new ArrayBuffer(size) as T);
-		view.byteOffset = byteOffset ?? 0;
-		view.byteLength = size;
-		return;
-	}
-
-	if (ArrayBuffer.isView(buffer)) {
-		view.buffer = buffer.buffer;
-		view.byteOffset = buffer.byteOffset;
-		view.byteLength = buffer.byteLength;
-		return;
-	}
-
-	const u8 = new Uint8Array((buffer as ArrayLike<number>).length) as Uint8Array<T>;
-
-	view.buffer = u8.buffer;
-	view.byteOffset = 0;
-	view.byteLength = u8.length;
-
-	for (let i = 0; i < u8.length; i++) {
-		u8[i] = (buffer as ArrayLike<number>)[i];
-	}
 }
 
 /** A generic view of an array buffer */
