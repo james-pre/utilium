@@ -27,6 +27,20 @@ export abstract class FileMap<V> implements Map<string, V> {
 
 	public abstract set(key: string, value: V): this;
 
+	public getOrInsert(key: string, defaultValue: V): V {
+		if (this.has(key)) {
+			return this.get(key);
+		}
+		return this.set(key, defaultValue).get(key);
+	}
+
+	public getOrInsertComputed(key: string, callback: (key: string) => V): V {
+		if (this.has(key)) {
+			return this.get(key);
+		}
+		return this.set(key, callback(key)).get(key);
+	}
+
 	public get size() {
 		return this._map.size;
 	}
