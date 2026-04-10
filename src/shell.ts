@@ -1,10 +1,40 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-/**
- * A simple wrapper for xterm.js that makes implementing shells easier
- * Copyright (c) 2025 James Prevett
- */
-
+// Copyright (c) 2026 James Prevett
 import type { Terminal } from '@xterm/xterm';
+
+/**
+ * Parse a line into arguments.
+ * Supports single and double quoted strings as well as backslash escaping.
+ */
+export function splitIntoArgs(input: string): string[] {
+	input = input.trim();
+	const args: string[] = [];
+	let current = '',
+		inQuote: '"' | "'" | null = null,
+		escape = false;
+
+	for (const char of input) {
+		if (escape) {
+			current += char;
+			escape = false;
+		} else if (char === '\\') {
+			escape = true;
+		} else if (inQuote) {
+			if (char === inQuote) inQuote = null;
+			else current += char;
+		} else if (char === '"' || char === "'") inQuote = char;
+		else if (/\s/.test(char)) {
+			if (current.length) {
+				args.push(current);
+				current = '';
+			}
+		} else {
+			current += char;
+		}
+	}
+	if (current.length) args.push(current);
+	return args;
+}
 
 export interface ShellOptions {
 	/**
@@ -116,7 +146,7 @@ async function handleData($: ShellContext, data: string) {
 }
 
 /**
- * Creates a new shell using the provided options
+ * A simple wrapper for xterm.js that makes implementing shells easier.
  */
 export function createShell(options: ShellOptions): ShellContext {
 	const context: ShellContext = {
