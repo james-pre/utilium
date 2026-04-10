@@ -7,7 +7,6 @@ import type { Terminal } from '@xterm/xterm';
  * Supports single and double quoted strings as well as backslash escaping.
  */
 export function splitIntoArgs(input: string): string[] {
-	input = input.trim();
 	const args: string[] = [];
 	let current = '',
 		inQuote: '"' | "'" | null = null,
