@@ -135,3 +135,5 @@ export type PadLeft<Init extends string, R extends string, N extends number> = `
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type NonEmptyString = `${any}${string}`;
+
+export type CoercibleToString = string | number | bigint | boolean | null | undefined;
