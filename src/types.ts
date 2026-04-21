@@ -73,3 +73,5 @@ export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true :
  * It improves performance for the math types by an order of magnitude.
  */
 export type $drain<T> = [T] extends [unknown] ? T : never;
+
+export type Falsy = null | undefined | false | 0 | 0n | '';

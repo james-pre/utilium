@@ -141,6 +141,10 @@ type i_less<A extends number, B extends number> = $drain<
 		: i_less<i_decrement<A>, i_decrement<B>>
 >;
 
+/**
+ * Is A less than B?
+ * @internal
+ */
 export type $LessThan<A extends number, B extends number> = _are_ints<A, B> extends true ? i_less<A, B> : never;
 
 type i_max<A extends number, B extends number> = i_less<A, B> extends true ? B : A;

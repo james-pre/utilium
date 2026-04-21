@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import type { FilterOut } from './array.js';
+import * as diff from './diff.js';
 import { _throw } from './misc.js';
 import type { Split } from './string.js';
 import type { $drain, Expand, UnionToTuple } from './types.js';
@@ -120,6 +121,12 @@ export function deepAssign<To extends object, From extends object>(
 	}
 
 	return to as DeepAssign<To, From>;
+}
+
+export type StructurallyEqual<To, From> = diff.DeepRT<To, From>['result'] extends 'equal' ? true : false;
+
+export function structurallyEqual<To, From>(to: To, from: From): StructurallyEqual<To, From> {
+	return (diff.deep(from, to).result === 'equal') as StructurallyEqual<To, From>;
 }
 
 /**
