@@ -14,6 +14,7 @@
  */
 
 import type { Length } from './array.js';
+import type { ToNumber } from './numbers.js';
 import type { Repeat, StringLength } from './string.js';
 import type { $drain } from './types.js';
 
@@ -245,7 +246,11 @@ export type Add<
 		? _sum_with_f<A, B, __fA>
 		: _sum_with_f<A, B, f_sum<__fA, __fB, Is_Negative<A>, Is_Negative<B>>>;
 
+export type AddBigInt<A extends bigint, B extends bigint> = i_sum<ToNumber<A>, ToNumber<B>>;
+
 export type Subtract<A extends number, B extends number> = Add<A, Negate<B>>;
+
+export type SubtractBigInt<A extends bigint, B extends bigint> = i_sum<ToNumber<A>, Negate<ToNumber<B>>>;
 
 /**
  * Accumulative addition:
