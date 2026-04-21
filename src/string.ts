@@ -33,7 +33,7 @@ const encoder = new TextEncoder();
  * Encodes a UTF-8 string into a buffer
  */
 export function encodeUTF8(input: string): Uint8Array<ArrayBuffer> {
-	return encoder.encode(input) as Uint8Array<ArrayBuffer>;
+	return encoder.encode(input);
 }
 
 const decoder = new TextDecoder();
