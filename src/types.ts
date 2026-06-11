@@ -75,3 +75,8 @@ export type UnionToTuple<T, L = LastOfUnion<T>, N = [T] extends [never] ? true :
 export type $drain<T> = [T] extends [unknown] ? T : never;
 
 export type Falsy = null | undefined | false | 0 | 0n | '';
+
+/**
+ * Returns whether `T` is `any`
+ */
+export type IsAny<T> = 0 extends 1 & T ? true : false;
