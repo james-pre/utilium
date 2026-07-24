@@ -60,6 +60,11 @@ if (opts.write && !expectedLicense) {
 	process.exit(1);
 }
 
+/**
+ * @param {string} path
+ * @param {string} display
+ * @returns {boolean}
+ */
 function should_exclude(path, display) {
 	for (const pattern of opts.exclude) {
 		if (!matchesGlob(path, pattern)) continue;
@@ -72,6 +77,15 @@ function should_exclude(path, display) {
 
 const licenseSpec = /^([\s\/*!-]*)SPDX-License-Identifier: (.+)$/im;
 
+/**
+ * @typedef {('skipped'|'missing'|'with license'|'correct'|'mismatched')} CheckResult
+ */
+
+/**
+ * @param {string} path
+ * @param {string} display
+ * @returns {Promise<CheckResult>}
+ */
 async function check_file(path, display) {
 	if (should_exclude(path, display)) return 'skipped';
 
@@ -100,6 +114,15 @@ async function check_file(path, display) {
 	return 'mismatched';
 }
 
+/**
+ * @typedef {'correct' | 'skipped' | 'added' | 'overwritten'} WriteResult
+ */
+
+/**
+ * @param {string} path
+ * @param {string} display
+ * @returns {Promise<WriteResult>}
+ */
 async function write_file(path, display) {
 	if (should_exclude(path, display)) return 'skipped';
 
@@ -133,6 +156,12 @@ async function write_file(path, display) {
 	return 'overwritten';
 }
 
+/**
+ *
+ * @param {string} dir
+ * @param {string} display
+ * @returns {Generator<Promise<CheckResult | WriteResult>>}
+ */
 function* check_dir(dir, display) {
 	if (should_exclude(dir, display)) return 'skipped';
 
@@ -204,7 +233,7 @@ try {
 			.map(([key, value]) => `${key in styles ? styleText(styles[key], value.toString()) : value} ${key}`)
 			.join(', ')
 	);
-} catch (error) {
+} catch (/** @type {any} */ error) {
 	console.error(styleText('red', error.toString()));
 	process.exit(1);
 }
