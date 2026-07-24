@@ -127,8 +127,10 @@ export class Resource<ID> {
 				return acc;
 			}, []);
 
-			// Extend buffer to include the new region
-			current.data = extendBuffer(current.data, next.offset + next.data.byteLength);
+			// Extend buffer to include the new region. `current.data` starts at
+			// `current.offset`, so its length is measured from there (the `.set()`
+			// destination is already relative to `current.offset`).
+			current.data = extendBuffer(current.data, next.offset + next.data.byteLength - current.offset);
 			current.data.set(next.data, next.offset - current.offset);
 
 			// Remove the next region after merging
@@ -219,8 +221,10 @@ export class Resource<ID> {
 		const region = this.regionAt(offset);
 
 		if (region) {
-			region.data = extendBuffer(region.data, end);
-			region.data.set(data, offset);
+			// `region.data` holds bytes starting at `region.offset`, so positions
+			// within it are relative to `region.offset` (not absolute resource offsets).
+			region.data = extendBuffer(region.data, end - region.offset);
+			region.data.set(data, offset - region.offset);
 			region.ranges.push({ start: offset, end });
 			region.ranges.sort((a, b) => a.start - b.start);
 
