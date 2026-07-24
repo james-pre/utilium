@@ -37,5 +37,8 @@ jobs:
             - name: Linting
               run: npm run lint
 
+            - name: Tests
+              run: npm test
+
             - name: Build
               run: npx tsc
