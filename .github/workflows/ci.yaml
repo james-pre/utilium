@@ -32,7 +32,7 @@ jobs:
               run: npm run format:check
 
             - name: License check
-              run: npx lice src -a
+              run: npx lice src -av
 
             - name: Linting
               run: npm run lint

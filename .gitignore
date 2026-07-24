@@ -1,6 +1,12 @@
+.*
+!.vscode
+!.github
+!.gitignore
+!.prettierignore
+!.gitattributes
 node_modules
 dist
 docs
 tmp
 *.log
-.tmp.*
+*.tsbuildinfo

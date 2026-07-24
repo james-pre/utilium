@@ -4,7 +4,7 @@
 
 import { existsSync, globSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, join, matchesGlob, relative } from 'node:path';
+import { dirname, extname, join, matchesGlob, relative } from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 
 const { positionals: inputs, values: opts } = parseArgs({
@@ -64,6 +64,9 @@ if (opts.write && !expectedLicense) {
 	process.exit(1);
 }
 
+/** Some built-in extensions that we should never check */
+const excludeExtensions = ['.json'];
+
 /**
  * @param {string} path
  * @param {string} display
@@ -75,6 +78,8 @@ function should_exclude(path, display) {
 		console.log(styleText('whiteBright', 'Skipped:'), display);
 		return true;
 	}
+
+	if (excludeExtensions.includes(extname(path))) return true;
 
 	return false;
 }

@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"lib": ["ESNext"],
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"noEmit": true,
+		"noImplicitThis": true,
+		"isolatedModules": true,
+		"strict": true,
+		"types": ["node"]
+	},
+	"include": ["./**/*.ts"],
+	"exclude": ["node_modules"]
+}

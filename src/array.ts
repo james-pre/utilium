@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 // Tuple and array types
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Subtract } from './type-math.js';

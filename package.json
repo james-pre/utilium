@@ -26,6 +26,8 @@
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
 		"lint": "tsc --noEmit && eslint src",
+		"test": "tsx --test test/**/*.test.ts",
+		"build": "tsc -b",
 		"prepublishOnly": "npx tsc"
 	},
 	"repository": {

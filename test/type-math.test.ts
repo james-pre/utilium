@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
-// Copyright (c) 2025 James Prevett
+// Copyright (c) 2026 James Prevett
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type { Add, Divide, Fraction, Integer, Multiply, Subtract } from './type-math.js';
+import type { Add, Divide, Fraction, Integer, Multiply, Subtract } from '../src/type-math.js';
 
 // addition
 
