@@ -45,9 +45,13 @@ function get_license() {
 		if (!existsSync(pkgPath)) continue;
 
 		const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-		if (pkg.spdx) return pkg.spdx;
-		if (pkg.spdxLicense) return pkg.spdxLicense;
-		if (pkg.license) return pkg.license;
+
+		const maybe = pkg.spdx || pkg.spdxLicense || pkg.license;
+
+		if (maybe) {
+			if (opts.verbose) console.log(styleText(['dim'], 'Auto-detected license:'), maybe);
+			return maybe;
+		}
 	}
 
 	return null;
