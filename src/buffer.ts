@@ -21,8 +21,10 @@ export interface ArrayBufferViewConstructor {
  * A generic typed array.
  * @see https://mdn.io/TypedArray
  */
-export interface TypedArray<TArrayBuffer extends ArrayBufferLike = ArrayBuffer, TValue = number | bigint>
-	extends ArrayBufferView<TArrayBuffer> {
+export interface TypedArray<
+	TArrayBuffer extends ArrayBufferLike = ArrayBuffer,
+	TValue = number | bigint,
+> extends ArrayBufferView<TArrayBuffer> {
 	/**
 	 * The size in bytes of each element in the array.
 	 */

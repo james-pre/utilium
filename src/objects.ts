@@ -170,8 +170,11 @@ export function* getAllPrototypes(object: object): IterableIterator<object> {
 /**
  * Allows you to convert an object with specific member types into a Map that will give you the correct type for the correct member
  */
-export interface ConstMap<T extends Partial<Record<keyof any, any>>, K extends keyof any = keyof T, V = T[keyof T]>
-	extends Map<K, V> {
+export interface ConstMap<
+	T extends Partial<Record<keyof any, any>>,
+	K extends keyof any = keyof T,
+	V = T[keyof T],
+> extends Map<K, V> {
 	get<TK extends keyof T>(key: TK): T[TK];
 	get(key: K): V;
 	set<TK extends keyof T>(key: TK, value: T[TK]): this;

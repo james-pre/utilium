@@ -170,7 +170,7 @@ export type OptionalTuple<T extends unknown[]> = T extends [infer Head, ...infer
  */
 export type FromKeyed<
 	A extends any[],
-	KeyName extends A extends (infer E)[] ? keyof E : never,
+	KeyName extends (A extends (infer E)[] ? keyof E : never),
 > = A extends (infer Element)[]
 	? {
 			[K in Element[KeyName] & PropertyKey]: Expand<Element & { [_ in KeyName & PropertyKey]: K }>;

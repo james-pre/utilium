@@ -104,7 +104,7 @@ export class Resource<ID> {
 		if (!this.options.sparse) return;
 		const { regionGapThreshold = 0xfff } = this.options;
 
-		for (let i = 0; i < this.regions.length - 1; ) {
+		for (let i = 0; i < this.regions.length - 1;) {
 			const current = this.regions[i];
 			const next = this.regions[i + 1];
 
