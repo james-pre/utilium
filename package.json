@@ -54,8 +54,13 @@
 	"dependencies": {
 		"eventemitter3": "^5.0.1"
 	},
-	"optionalDependencies": {
-		"@xterm/xterm": "^5.5.0"
+	"peerDependencies": {
+		"@xterm/xterm": "^6.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@xterm/xterm": {
+			"optional": true
+		}
 	},
 	"engines": {
 		"node": ">=22.0.0"
