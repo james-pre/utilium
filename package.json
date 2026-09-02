@@ -15,7 +15,7 @@
 		"./eslint": "./eslint.shared.js"
 	},
 	"bin": {
-		"lice": "./scripts/lice.js"
+		"lice": "scripts/lice.js"
 	},
 	"files": [
 		"dist",
