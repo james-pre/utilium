@@ -2,6 +2,8 @@
 // Copyright (c) 2025 James Prevett
 /* eslint-disable @typescript-eslint/no-unused-expressions */
 
+/// <reference lib="dom" />
+
 /**
  * Upload a file
  * @todo use Promise.withResolvers

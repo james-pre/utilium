@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2026 James Prevett
-import type { Terminal } from '@xterm/xterm';
 
 /**
  * Parse a line into arguments.
@@ -35,121 +34,158 @@ export function splitIntoArgs(input: string): string[] {
 	return args;
 }
 
+/** Where a shell reads keystrokes from, i.e. the parts of `NodeJS.ReadStream` it uses. */
+export interface ShellInput {
+	on(event: 'data', listener: (chunk: string | Uint8Array) => void): unknown;
+	off?(event: 'data', listener: (chunk: string | Uint8Array) => void): unknown;
+	/** Hand over keystrokes as they are typed, instead of a line at a time with editing and echo */
+	setRawMode?(raw: boolean): unknown;
+	resume?(): unknown;
+	pause?(): unknown;
+	readonly isTTY?: boolean;
+}
+
+/**
+ * Where a shell draws, i.e. the parts of `NodeJS.WriteStream` it uses.
+ */
+export interface ShellOutput {
+	write(data: string): unknown;
+	readonly columns?: number;
+	readonly rows?: number;
+}
+
 export interface ShellOptions {
 	/**
-	 * The terminal associated with the context
+	 * The stream keystrokes are read from, e.g. `process.stdin`.
+	 * The shell does its own line editing, so it is put into raw mode.
 	 */
-	terminal: Terminal;
+	stdin: ShellInput;
 
-	/**
-	 * The prompt to use, can be a getter.
-	 */
+	/** The stream the prompt and the line being edited are written to, e.g. `process.stdout`. */
+	stdout: ShellOutput;
+
+	/** The prompt to use, can be a getter. */
 	readonly prompt?: string;
 
-	/**
-	 * The length to use for the prompt. Useful if escape sequences are used in the prompt.
-	 */
+	/** The length to use for the prompt. Useful if escape sequences are used in the prompt. */
 	readonly promptLength?: number;
 
-	/**
-	 * The handler for when a line is parsed
-	 */
+	/** The handler for when a line is parsed */
 	onLine?(this: void, line: string): unknown;
 }
 
 export interface ShellContext extends Required<ShellOptions> {
-	/**
-	 * The input currently being shown
-	 */
+	/** The input currently being shown */
 	input: string;
 
-	/**
-	 * The index for which input is being shown
-	 */
+	/** Where the cursor is in `input`. */
+	cursor: number;
+
+	/** The index for which input is being shown */
 	index: number;
 
-	/**
-	 * The current, uncached input
-	 */
+	/** The current, uncached input */
 	currentInput: string;
 
-	/**
-	 * array of previous inputs
-	 */
+	/** array of previous inputs */
 	inputs: string[];
+
+	/** Stop reading from `stdin` and put it back the way it was found */
+	close(): void;
 }
 
-async function handleData($: ShellContext, data: string) {
+/**
+ * One key press: a CSI or SS3 escape sequence, or a single character.
+ * A read can come back with more than one key in it, e.g. when text is pasted,
+ * and an escape sequence must not be taken for the characters it is made of.
+ */
+// eslint-disable-next-line no-control-regex
+const keyPattern = /\x1b\[[0-?]*[ -\/]*[@-~]|\x1bO[@-~]|[\s\S]/gu;
+
+async function handleKey($: ShellContext, key: string) {
 	if ($.index == -1) {
 		$.currentInput = $.input;
 	}
 
-	function clear(): void {
-		$.terminal.write('\x1b[2K\r' + $.prompt);
+	/** Redraw the whole line, for when the input is replaced rather than edited */
+	function redraw(): void {
+		$.stdout.write('\x1b[2K\r' + $.prompt + $.input);
+		$.cursor = $.input.length;
 	}
-	const x = $.terminal.buffer.active.cursorX - $.promptLength;
-	switch (data) {
+
+	switch (key) {
 		case 'ArrowUp':
 		case '\x1b[A':
-			clear();
 			if ($.index < $.inputs.length - 1) {
 				$.input = $.inputs[++$.index];
 			}
-			$.terminal.write($.input);
+			redraw();
 			break;
 		case 'ArrowDown':
 		case '\x1b[B':
-			clear();
 			if ($.index >= 0) {
 				$.input = $.index-- == 0 ? $.currentInput : $.inputs[$.index];
 			}
-			$.terminal.write($.input);
+			redraw();
 			break;
 		case '\x1b[D':
-			if (x > 0) {
-				$.terminal.write(data);
+			if ($.cursor > 0) {
+				$.cursor--;
+				$.stdout.write(key);
 			}
 			break;
 		case '\x1b[C':
-			if (x < $.input.length) {
-				$.terminal.write(data);
+			if ($.cursor < $.input.length) {
+				$.cursor++;
+				$.stdout.write(key);
 			}
 			break;
 		case '\x1b[F':
-			$.terminal.write(`\x1b[${$.promptLength + $.input.length + 1}G`);
+			$.cursor = $.input.length;
+			$.stdout.write(`\x1b[${$.promptLength + $.cursor + 1}G`);
 			break;
 		case '\x1b[H':
-			$.terminal.write(`\x1b[${$.promptLength + 1}G`);
+			$.cursor = 0;
+			$.stdout.write(`\x1b[${$.promptLength + 1}G`);
 			break;
 		case '\x7f':
-			if (x <= 0) {
+			if ($.cursor <= 0) {
 				return;
 			}
-			$.terminal.write('\b\x1b[P');
-			$.input = $.input.slice(0, x - 1) + $.input.slice(x);
+			$.input = $.input.slice(0, $.cursor - 1) + $.input.slice($.cursor);
+			$.cursor--;
+			$.stdout.write('\b\x1b[P');
 			break;
 		case '\r':
 			if ($.input != $.inputs[0]) {
 				$.inputs.unshift($.input);
 			}
-			$.terminal.write('\r\n');
+			$.stdout.write('\r\n');
 			await $.onLine($.input);
 			$.index = -1;
 			$.input = '';
-			$.terminal.write($.prompt);
+			$.cursor = 0;
+			$.stdout.write($.prompt);
 			break;
-		default:
-			$.terminal.write(data);
-			$.input = $.input.slice(0, x) + data + $.input.slice(x);
+		default: {
+			if (key.startsWith('\x1b') || key < ' ') return;
+			$.input = $.input.slice(0, $.cursor) + key + $.input.slice($.cursor);
+			$.cursor += key.length;
+			const rest = $.input.slice($.cursor);
+			$.stdout.write(key + rest + (rest ? `\x1b[${rest.length}D` : ''));
+		}
 	}
 }
 
 /**
- * A simple wrapper for xterm.js that makes implementing shells easier.
+ * A simple wrapper for a pair of streams that makes implementing shells easier.
  */
 export function createShell(options: ShellOptions): ShellContext {
+	const decoder = new TextDecoder();
+
 	const context: ShellContext = {
-		terminal: options.terminal,
+		stdin: options.stdin,
+		stdout: options.stdout,
 		get prompt() {
 			return options.prompt ?? '';
 		},
@@ -158,10 +194,30 @@ export function createShell(options: ShellOptions): ShellContext {
 		},
 		onLine: options.onLine ?? (() => {}),
 		input: '',
+		cursor: 0,
 		index: -1,
 		currentInput: '',
 		inputs: [],
+		close() {
+			options.stdin.off?.('data', listener);
+			options.stdin.setRawMode?.(false);
+			options.stdin.pause?.();
+		},
 	};
-	options.terminal.onData(data => handleData(context, data));
+
+	let pending = Promise.resolve();
+
+	const listener = (chunk: string | Uint8Array) => {
+		const data = typeof chunk == 'string' ? chunk : decoder.decode(chunk, { stream: true });
+
+		pending = pending.then(async () => {
+			for (const [key] of data.matchAll(keyPattern)) await handleKey(context, key);
+		});
+	};
+
+	options.stdin.setRawMode?.(true);
+	options.stdin.on('data', listener);
+	options.stdin.resume?.();
+
 	return context;
 }
