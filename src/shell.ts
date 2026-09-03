@@ -156,6 +156,27 @@ async function handleKey($: ShellContext, key: string) {
 			$.cursor--;
 			$.stdout.write('\b\x1b[P');
 			break;
+		case '\x1b[3~':
+			if ($.cursor >= $.input.length) {
+				return;
+			}
+			$.input = $.input.slice(0, $.cursor) + $.input.slice($.cursor + 1);
+			$.stdout.write('\x1b[P');
+			break;
+		case '\x0c': {
+			$.stdout.write('\x1b[2J\x1b[H' + $.prompt + $.input);
+			const back = $.input.length - $.cursor;
+			if (back) $.stdout.write(`\x1b[${back}D`);
+			break;
+		}
+		case '\x03':
+			$.stdout.write('^C\r\n');
+			$.index = -1;
+			$.input = '';
+			$.currentInput = '';
+			$.cursor = 0;
+			$.stdout.write($.prompt);
+			break;
 		case '\r':
 			if ($.input != $.inputs[0]) {
 				$.inputs.unshift($.input);
