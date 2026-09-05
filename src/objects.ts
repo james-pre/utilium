@@ -83,10 +83,11 @@ export type DeepAssign<To extends object, From extends object> = {
 export function deepAssign<To extends object, From extends object>(
 	to: To,
 	from: From,
-	treatArraysAsPrimitives = false
+	treatArraysAsPrimitives = false,
+	_unsafeConstructorOverride = false
 ): DeepAssign<To, From> {
 	for (const [key, value] of Object.entries(from) as [keyof From & keyof To, any][]) {
-		if (key === '__proto__') continue;
+		if (key === '__proto__' || (!_unsafeConstructorOverride && key === 'constructor')) continue;
 
 		if (!(key in to)) {
 			to[key] = value;
@@ -102,7 +103,7 @@ export function deepAssign<To extends object, From extends object>(
 		}
 
 		if (isObject(to[key]) && Object(value) === value) {
-			deepAssign(to[key], value, treatArraysAsPrimitives);
+			deepAssign(to[key], value, treatArraysAsPrimitives, _unsafeConstructorOverride);
 			continue;
 		}
 
