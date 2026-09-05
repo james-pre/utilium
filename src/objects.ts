@@ -85,15 +85,8 @@ export function deepAssign<To extends object, From extends object>(
 	from: From,
 	treatArraysAsPrimitives = false
 ): DeepAssign<To, From> {
-	const keys = new Set<keyof To | keyof From>([
-		...(Object.keys(to) as (keyof To)[]),
-		...(Object.keys(from) as (keyof From)[]),
-	]) as Set<keyof To & keyof From>;
-
-	for (const key of keys) {
-		if (!(key in from)) continue;
-
-		const value = from[key] as any;
+	for (const [key, value] of Object.entries(from) as [keyof From & keyof To, any][]) {
+		if (key === '__proto__') continue;
 
 		if (!(key in to)) {
 			to[key] = value;
