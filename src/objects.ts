@@ -80,14 +80,36 @@ export type DeepAssign<To extends object, From extends object> = {
 		: From[K & keyof From]; // (none) <- ?
 };
 
+export interface DeepAssignOptions {
+	/** Whether to replace arrays instead of merging them */
+	replaceArrays?: boolean;
+	/** Whether to allow unsafe override of the `constructor` property */
+	unsafeOverrideConstructor?: boolean;
+}
+
+/**
+ * @deprecated
+ * Use an options object instead, see {@link DeepAssignOptions}
+ */
 export function deepAssign<To extends object, From extends object>(
 	to: To,
 	from: From,
-	treatArraysAsPrimitives = false,
-	_unsafeConstructorOverride = false
+	treatArraysAsPrimitives: boolean
+): DeepAssign<To, From>;
+export function deepAssign<To extends object, From extends object>(
+	to: To,
+	from: From,
+	options?: DeepAssignOptions
+): DeepAssign<To, From>;
+export function deepAssign<To extends object, From extends object>(
+	to: To,
+	from: From,
+	options: DeepAssignOptions | boolean = {}
 ): DeepAssign<To, From> {
+	options = typeof options == 'boolean' ? { replaceArrays: options } : options;
+
 	for (const [key, value] of Object.entries(from) as [keyof From & keyof To, any][]) {
-		if (key === '__proto__' || (!_unsafeConstructorOverride && key === 'constructor')) continue;
+		if (key === '__proto__' || (!options.unsafeOverrideConstructor && key === 'constructor')) continue;
 
 		if (!(key in to)) {
 			to[key] = value;
@@ -96,14 +118,14 @@ export function deepAssign<To extends object, From extends object>(
 
 		if (
 			(!isObject(to[key]) && Object(value) !== value)
-			|| (treatArraysAsPrimitives && (Array.isArray(value) || Array.isArray(to[key])))
+			|| (options.replaceArrays && (Array.isArray(value) || Array.isArray(to[key])))
 		) {
 			to[key] = value;
 			continue;
 		}
 
 		if (isObject(to[key]) && Object(value) === value) {
-			deepAssign(to[key], value, treatArraysAsPrimitives, _unsafeConstructorOverride);
+			deepAssign(to[key], value, options);
 			continue;
 		}
 
