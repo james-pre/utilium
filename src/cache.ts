@@ -3,8 +3,6 @@
  * A ranged cache
  * Copyright (c) 2025 James Prevett
  */
-import { extendBuffer } from './buffer.js';
-
 export interface Options {
 	/**
 	 * If true, use multiple buffers to cache a file.
@@ -26,9 +24,40 @@ export interface Options {
 	 * @default false
 	 */
 	cacheOnly?: boolean;
+
+	/**
+	 * Multiplier applied to a region's capacity when it has to grow.
+	 * Values outside `[1, 100]` fall back to the default.
+	 * Higher trades memory for fewer reallocations, while `1` allocates exactly what is needed and makes repeated appends quadratic.
+	 * @default 2
+	 */
+	growFactor?: number;
 }
 
 export type Range = { start: number; end: number };
+
+/** Insert `[start, end)` into a sorted, non-overlapping list of ranges, merging it with any ranges it touches. */
+export function addRange(ranges: Range[], start: number, end: number): void {
+	let i = ranges.length;
+	while (i > 0 && ranges[i - 1].start > start) i--;
+
+	const prev = ranges[i - 1];
+	if (prev && prev.end >= start) {
+		if (prev.end >= end) return;
+		prev.end = end;
+	} else {
+		ranges.splice(i, 0, { start, end });
+		i++;
+	}
+
+	const merged = ranges[i - 1];
+	let j = i;
+	while (j < ranges.length && ranges[j].start <= merged.end) {
+		merged.end = Math.max(merged.end, ranges[j].end);
+		j++;
+	}
+	if (j > i) ranges.splice(i, j - i);
+}
 
 export interface Region {
 	/** The region's offset from the start of the resource */
@@ -94,57 +123,75 @@ export class Resource<ID> {
 		resources?: Map<ID, Resource<ID> | undefined>
 	) {
 		options.sparse ??= true;
+		if (
+			!options.growFactor
+			|| !Number.isFinite(options.growFactor)
+			|| options.growFactor < 1
+			|| options.growFactor > 100
+		)
+			options.growFactor = 2;
 		if (!options.sparse) this.regions.push({ offset: 0, data: new Uint8Array(_size), ranges: [] });
 
 		resources?.set(id, this);
 	}
 
+	/**
+	 * Resize `region.data` to `length` bytes.
+	 * Capacity can be over-allocated geometrically so appending to a region repeatedly stays amortized O(1).
+	 */
+	protected resizeRegion(region: Region, length: number): void {
+		const { buffer, byteOffset } = region.data;
+
+		if (buffer.byteLength - byteOffset >= length) {
+			region.data = new Uint8Array(buffer, byteOffset, length);
+			return;
+		}
+
+		const grown = new Uint8Array(Math.max(length, (buffer.byteLength - byteOffset) * this.options.growFactor!));
+		grown.set(region.data);
+		region.data = grown.subarray(0, length);
+	}
+
+	/** Merge the region after `index` into the one at `index`, if the gap between them is small enough */
+	protected mergeAt(index: number): boolean {
+		const current = this.regions[index];
+		const next = this.regions[index + 1];
+		if (!current || !next) return false;
+
+		const { regionGapThreshold = 0xfff } = this.options;
+		if (next.offset - (current.offset + current.data.byteLength) > regionGapThreshold) return false;
+
+		for (const range of next.ranges) addRange(current.ranges, range.start, range.end);
+
+		const length = next.offset + next.data.byteLength - current.offset;
+		if (length > current.data.byteLength) this.resizeRegion(current, length);
+		current.data.set(next.data, next.offset - current.offset);
+
+		this.regions.splice(index + 1, 1);
+		return true;
+	}
+
 	/** Combines adjacent regions and combines adjacent ranges within a region */
 	public collect(): void {
 		if (!this.options.sparse) return;
-		const { regionGapThreshold = 0xfff } = this.options;
+		for (let i = 0; i < this.regions.length - 1;) if (!this.mergeAt(i)) i++;
+	}
 
-		for (let i = 0; i < this.regions.length - 1;) {
-			const current = this.regions[i];
-			const next = this.regions[i + 1];
-
-			if (next.offset - (current.offset + current.data.byteLength) > regionGapThreshold) {
-				i++;
-				continue;
-			}
-
-			// Combine ranges
-			current.ranges.push(...next.ranges);
-			current.ranges.sort((a, b) => a.start - b.start);
-
-			// Combine overlapping/adjacent ranges
-			current.ranges = current.ranges.reduce((acc: Range[], range) => {
-				if (!acc.length || acc.at(-1)!.end < range.start) {
-					acc.push(range);
-				} else {
-					acc.at(-1)!.end = Math.max(acc.at(-1)!.end, range.end);
-				}
-				return acc;
-			}, []);
-
-			// Extend buffer to include the new region. `current.data` starts at
-			// `current.offset`, so its length is measured from there (the `.set()`
-			// destination is already relative to `current.offset`).
-			current.data = extendBuffer(current.data, next.offset + next.data.byteLength - current.offset);
-			current.data.set(next.data, next.offset - current.offset);
-
-			// Remove the next region after merging
-			this.regions.splice(i + 1, 1);
-		}
+	/**
+	 * Combine the region at `index` with the neighbors it now reaches.
+	 * Only that region can have changed, so this does not re-walk the whole list the way `collect` does.
+	 */
+	protected collectAt(index: number): void {
+		if (!this.options.sparse) return;
+		if (index > 0 && this.mergeAt(index - 1)) index--;
+		while (this.mergeAt(index));
 	}
 
 	/** Takes an initial range and finds the sub-ranges that are not in the cache */
 	public missing(start: number, end: number): Range[] {
 		const missingRanges: Range[] = [];
 
-		for (const region of this.regions) {
-			if (region.offset >= end) break;
-
+		for (const region of this.regionsIn(start, end)) {
 			for (const range of region.ranges) {
 				if (range.end <= start) continue;
 				if (range.start >= end) break;
@@ -175,9 +222,7 @@ export class Resource<ID> {
 	public cached(start: number, end: number): Range[] {
 		const cachedRanges: Range[] = [];
 
-		for (const region of this.regions) {
-			if (region.offset >= end) break;
-
+		for (const region of this.regionsIn(start, end)) {
 			for (const range of region.ranges) {
 				if (range.end <= start) continue;
 				if (range.start >= end) break;
@@ -203,47 +248,56 @@ export class Resource<ID> {
 		return merged;
 	}
 
+	/** Index of the first region positioned after `offset`. Regions are kept sorted, so this is a binary search. */
+	protected indexAfter(offset: number): number {
+		let low = 0,
+			high = this.regions.length;
+
+		while (low < high) {
+			const mid = (low + high) >> 1;
+			if (this.regions[mid].offset > offset) high = mid;
+			else low = mid + 1;
+		}
+
+		return low;
+	}
+
 	/** Get the region who's ranges include an offset */
 	public regionAt(offset: number): Region | undefined {
-		if (!this.regions.length) return;
+		const region = this.regions[this.indexAfter(offset) - 1];
+		if (region && offset < region.offset + region.data.byteLength) return region;
+	}
 
-		for (const region of this.regions) {
-			if (region.offset > offset) break;
-
-			// Check if the offset is within this region
-			if (offset >= region.offset && offset < region.offset + region.data.byteLength) return region;
+	/** The regions overlapping `[start, end)`, in order. Seeks to the first one rather than scanning from the start. */
+	public *regionsIn(start: number, end: number): Generator<Region> {
+		for (let i = Math.max(0, this.indexAfter(start) - 1); i < this.regions.length; i++) {
+			const region = this.regions[i];
+			if (region.offset >= end) return;
+			if (region.offset + region.data.byteLength > start) yield region;
 		}
 	}
 
 	/** Add new data to the cache at given specified offset */
 	public add(data: Uint8Array, offset: number): this {
 		const end = offset + data.byteLength;
-		const region = this.regionAt(offset);
+		const index = this.indexAfter(offset) - 1;
+		const region = this.regions[index];
 
-		if (region) {
+		if (region && offset < region.offset + region.data.byteLength) {
 			// `region.data` holds bytes starting at `region.offset`, so positions
 			// within it are relative to `region.offset` (not absolute resource offsets).
-			region.data = extendBuffer(region.data, end - region.offset);
+			if (end - region.offset > region.data.byteLength) this.resizeRegion(region, end - region.offset);
 			region.data.set(data, offset - region.offset);
-			region.ranges.push({ start: offset, end });
-			region.ranges.sort((a, b) => a.start - b.start);
+			addRange(region.ranges, offset, end);
 
-			this.collect();
+			this.collectAt(index);
 			return this;
 		}
 
-		// Find the correct index to insert the new region
-		const newRegion: Region = { data, offset: offset, ranges: [{ start: offset, end }] };
-		const insertIndex = this.regions.findIndex(region => region.offset > offset);
-
 		// Insert at the right index to keep regions sorted
-		if (insertIndex == -1) {
-			this.regions.push(newRegion); // Append if no later region exists
-		} else {
-			this.regions.splice(insertIndex, 0, newRegion); // Insert before the first region with a greater offset
-		}
+		this.regions.splice(index + 1, 0, { data, offset, ranges: [{ start: offset, end }] });
 
-		this.collect();
+		this.collectAt(index + 1);
 		return this;
 	}
 }

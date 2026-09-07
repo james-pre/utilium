@@ -102,4 +102,72 @@ suite('Resource cache', () => {
 		assert.deepEqual(readRange(resource, 80, 180), content.slice(80, 180));
 		assert.deepEqual(readRange(resource, 200, 300), content.slice(200, 300));
 	});
+
+	test('appending in small chunks keeps one region holding exactly the written bytes', () => {
+		const chunk = 64;
+		const count = 200;
+		const content = makeContent(chunk * count);
+		const resource = new Resource<string>('append', 0, {});
+
+		for (let i = 0; i < count; i++) resource.add(content.slice(i * chunk, (i + 1) * chunk), i * chunk);
+
+		// Regions and ranges both collapse, so neither grows one entry per write.
+		assert.equal(resource.regions.length, 1);
+		assert.deepEqual(resource.regions[0].ranges, [{ start: 0, end: content.byteLength }]);
+
+		// Capacity is over-allocated, but the region's length is still exactly what was written.
+		const [region] = resource.regions;
+		assert.equal(region.data.byteLength, content.byteLength);
+		assert.deepEqual(region.data, content);
+		assert.deepEqual(readRange(resource, 0, content.byteLength), content);
+	});
+
+	test('over-allocated capacity is never readable as cached data', () => {
+		const content = makeContent(300);
+		const resource = new Resource<string>('capacity', content.byteLength, {});
+
+		resource.add(content.slice(0, 100), 0);
+		resource.add(content.slice(100, 150), 100);
+
+		const [region] = resource.regions;
+		assert.equal(region.data.byteLength, 150);
+		// Spare capacity lives past the view, so `cached` and `missing` must stop at 150.
+		assert.deepEqual(resource.cached(0, 300), [{ start: 0, end: 150 }]);
+		assert.deepEqual(resource.missing(0, 300), [{ start: 150, end: 300 }]);
+	});
+
+	test('ranges stay sorted and merged however they arrive', () => {
+		const content = makeContent(400);
+		const resource = new Resource<string>('ranges', content.byteLength, {});
+
+		// One region, written out of order, with an overlap and a re-write.
+		resource.add(content.slice(0, 40), 0);
+		resource.add(content.slice(120, 160), 120);
+		resource.add(content.slice(40, 80), 40);
+		resource.add(content.slice(70, 130), 70); // bridges the gap and overlaps both sides
+		resource.add(content.slice(10, 30), 10); // fully inside an existing range
+
+		const ranges = resource.regions.flatMap(region => region.ranges);
+		for (let i = 1; i < ranges.length; i++)
+			assert.ok(ranges[i - 1].end < ranges[i].start, 'ranges overlap or touch');
+		assert.deepEqual(resource.cached(0, 400), [{ start: 0, end: 160 }]);
+		assert.deepEqual(readRange(resource, 0, 160), content.slice(0, 160));
+	});
+
+	test('regionAt finds the right region among many', () => {
+		const gap = 1000;
+		const count = 50;
+		const resource = new Resource<string>('many', gap * count, { regionGapThreshold: 0 });
+
+		// Gaps are wider than the threshold, so these stay separate regions.
+		for (let i = 0; i < count; i++) resource.add(makeContent(10), i * gap);
+		assert.equal(resource.regions.length, count);
+
+		for (let i = 0; i < count; i++) {
+			assert.equal(resource.regionAt(i * gap)?.offset, i * gap, `start of region ${i}`);
+			assert.equal(resource.regionAt(i * gap + 9)?.offset, i * gap, `end of region ${i}`);
+			assert.equal(resource.regionAt(i * gap + 10), undefined, `gap after region ${i}`);
+		}
+		assert.equal(resource.regionAt(-1), undefined);
+	});
 });
