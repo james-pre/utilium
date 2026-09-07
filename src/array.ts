@@ -176,3 +176,12 @@ export type FromKeyed<
 			[K in Element[KeyName] & PropertyKey]: Expand<Element & { [_ in KeyName & PropertyKey]: K }>;
 		}
 	: never;
+
+export function chunkArray<const T>(array: readonly T[], chunkSize: number): T[][] {
+	if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0)
+		throw new Error('chunkArray: chunk size must be a positive integer');
+
+	const chunks: T[][] = [];
+	for (let i = 0; i < array.length; i += chunkSize) chunks.push(array.slice(i, i + chunkSize));
+	return chunks;
+}
