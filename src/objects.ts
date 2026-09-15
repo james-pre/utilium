@@ -41,12 +41,12 @@ export function omit<T extends object, K extends keyof T>(
 	return filterObject<T, Omit<T, K>>(object, key => !keys.flat().includes(key as K));
 }
 
-export function assignWithDefaults<To extends Record<keyof any, any>, From extends Partial<To>>(
+export function assignWithDefaults<To extends Record<keyof From, any>, From extends Record<string, any>>(
 	to: To,
 	from: From,
-	defaults: Partial<To> = to
+	defaults: Partial<From> = to
 ): void {
-	const keys = new Set<keyof To | keyof From>([...Object.keys(to), ...Object.keys(from)]);
+	const keys = new Set<(keyof To | keyof From) & string>([...Object.keys(to), ...Object.keys(from)]);
 	for (const key of keys) {
 		try {
 			to[key] = from[key] ?? defaults[key] ?? to[key];
