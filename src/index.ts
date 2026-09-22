@@ -8,6 +8,7 @@ export * as cache from './cache.js';
 export * from './checksum.js';
 export * from './color.js';
 export * as diff from './diff.js';
+export * as format from './format.js';
 export * from './list.js';
 export * from './misc.js';
 export * from './numbers.js';
