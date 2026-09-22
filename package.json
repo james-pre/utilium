@@ -68,5 +68,6 @@
 	},
 	"allowScripts": {
 		"esbuild": true
-	}
+	},
+	"sideEffects": false
 }
