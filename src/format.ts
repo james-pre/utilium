@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 // Copyright (c) 2026 James Prevett
 
+/** Lengths are in milliseconds */
+const rangeUnits = [
+	['day', 24 * 3600_000],
+	['hour', 3600_000],
+	['minute', 60_000],
+] as const;
+
 export function dateRange(date: Date): string {
-	const rawDays = (date.getTime() - Date.now()) / (24 * 3600_000);
-	const daysCount = Math.abs(rawDays);
-	const daysText = Math.round(daysCount);
+	const offset = date.getTime() - Date.now();
+	const distance = Math.abs(offset);
 
-	const plural = daysCount == 1 ? '' : 's';
+	const [unit, length] = rangeUnits.find(([, length]) => distance >= length) ?? rangeUnits.at(-1)!;
+	const count = Math.round(distance / length);
+	const text = `${count} ${unit}${count == 1 ? '' : 's'}`;
 
-	return `${date.toLocaleString()} (${rawDays >= 0 ? `in ${daysText} day${plural}` : `${daysText} day${plural} ago`})`;
+	return `${date.toLocaleString()} (${offset >= 0 ? `in ${text}` : `${text} ago`})`;
 }
 
 export function bytes(bytes: bigint | number): string {
