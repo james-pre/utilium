@@ -8,15 +8,20 @@ const rangeUnits = [
 	['minute', 60_000],
 ] as const;
 
-export function dateRange(date: Date): string {
-	const offset = date.getTime() - Date.now();
+/** Describes how far `date` is from `relativeTo`, e.g. `3 hours ago` or `in 2 days`. */
+export function relativeToDate(date: Date | number, relativeTo: Date | number = Date.now()): string {
+	const offset = Number(date) - Number(relativeTo);
 	const distance = Math.abs(offset);
 
 	const [unit, length] = rangeUnits.find(([, length]) => distance >= length) ?? rangeUnits.at(-1)!;
 	const count = Math.round(distance / length);
 	const text = `${count} ${unit}${count == 1 ? '' : 's'}`;
 
-	return `${date.toLocaleString()} (${offset >= 0 ? `in ${text}` : `${text} ago`})`;
+	return offset >= 0 ? `in ${text}` : `${text} ago`;
+}
+
+export function dateRange(date: Date): string {
+	return `${date.toLocaleString()} (${relativeToDate(date)})`;
 }
 
 export function bytes(bytes: bigint | number): string {
