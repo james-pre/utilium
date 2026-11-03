@@ -71,6 +71,12 @@ export interface JSONFileMapOptions {
 	 * Should an invalid JSON file be overwritten
 	 */
 	overwrite_invalid: boolean;
+
+	/**
+	 * When set, format the JSON nicely.
+	 * @default false
+	 */
+	pretty?: boolean;
 }
 
 /**
@@ -108,7 +114,7 @@ export class JSONFileMap<T extends JSONValue = JSONValue> extends FileMap<T> {
 		if (!fs.existsSync(this.path)) {
 			fs.writeFileSync(this.path, '{}');
 		}
-		const content = JSON.stringify(Object.fromEntries(map));
+		const content = JSON.stringify(Object.fromEntries(map), null, this.options.pretty ? '\t' : undefined);
 		fs.writeFileSync(this.path, content);
 	}
 
