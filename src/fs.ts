@@ -115,7 +115,7 @@ export class JSONFileMap<T extends JSONValue = JSONValue> extends FileMap<T> {
 			fs.writeFileSync(this.path, '{}');
 		}
 		const content = JSON.stringify(Object.fromEntries(map), null, this.options.pretty ? '\t' : undefined);
-		fs.writeFileSync(this.path, content);
+		fs.writeFileSync(this.path, this.options.pretty ? content + '\n' : content);
 	}
 
 	public clear() {
