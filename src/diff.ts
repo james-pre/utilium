@@ -204,7 +204,7 @@ export function functionRT<From extends fn, To extends fn>(from: From, to: To): 
 	type RT = FunctionRT<From, To>;
 
 	if (from.length === to.length) {
-		return { type: 'function', result: 'equal' } as RT;
+		return { type: 'function', result: 'equal' };
 	}
 
 	return { type: 'function', result: 'diff-arg', argCount: from.length - to.length } as RT;
