@@ -10,7 +10,11 @@ suite('AsyncQueue', () => {
 		const queue = new AsyncQueue();
 		const events: string[] = [];
 
-		for (const [name, delay] of [['a', 10], ['b', 0], ['c', 5]] as const) {
+		for (const [name, delay] of [
+			['a', 10],
+			['b', 0],
+			['c', 5],
+		] as const) {
 			queue.run(async () => {
 				events.push(name + ' start');
 				await setTimeout(delay);
