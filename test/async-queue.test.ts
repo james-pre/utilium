@@ -15,7 +15,7 @@ suite('AsyncQueue', () => {
 			['b', 0],
 			['c', 5],
 		] as const) {
-			queue.run(async () => {
+			queue.defer(async () => {
 				events.push(name + ' start');
 				await setTimeout(delay);
 				events.push(name + ' end');
@@ -32,9 +32,9 @@ suite('AsyncQueue', () => {
 		const queue = new AsyncQueue();
 		const ran: number[] = [];
 
-		queue.run(() => Promise.reject(new Error('first')));
-		queue.run(() => Promise.reject(new Error('second')));
-		queue.run(async () => void ran.push(3));
+		queue.defer(() => Promise.reject(new Error('first')));
+		queue.defer(() => Promise.reject(new Error('second')));
+		queue.defer(async () => void ran.push(3));
 
 		await queue.settled();
 		assert.deepEqual(ran, [3]);
@@ -47,8 +47,8 @@ suite('AsyncQueue', () => {
 		const errors: unknown[] = [];
 		queue.addEventListener('error', event => errors.push((event as ErrorEvent).error));
 
-		queue.run(() => Promise.reject('not an error'));
-		queue.run(() => {
+		queue.defer(() => Promise.reject('not an error'));
+		queue.defer(() => {
 			throw new Error('thrown synchronously');
 		});
 		await queue.settled();
@@ -64,7 +64,7 @@ suite('AsyncQueue', () => {
 		process.on('unhandledRejection', onUnhandled);
 
 		const queue = new AsyncQueue();
-		queue.run(() => setTimeout(20));
+		queue.defer(() => setTimeout(20));
 		queue.add(Promise.reject(new Error('early')));
 
 		await setTimeout(10);
@@ -79,7 +79,7 @@ suite('AsyncQueue', () => {
 		const queue = new AsyncQueue();
 		const events: string[] = [];
 
-		queue.run(async () => {
+		queue.defer(async () => {
 			await setTimeout(10);
 			events.push('function');
 		});
