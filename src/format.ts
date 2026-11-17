@@ -20,6 +20,35 @@ export function relativeToDate(date: Date | number, relativeTo: Date | number = 
 	return offset >= 0 ? `in ${text}` : `${text} ago`;
 }
 
+/** Lengths are in milliseconds */
+const spanUnits = [...rangeUnits, ['second', 1000]] as const;
+
+/**
+ * Describes a length of time using its largest units, e.g. `1 hour 5 minutes`.
+ * @param milliseconds The length of time
+ * @param precision How many units to use at most
+ */
+export function timeSpan(milliseconds: number, precision: number = 2): string {
+	const distance = Math.abs(milliseconds);
+
+	const largest = Math.max(
+		spanUnits.findIndex(([, length]) => distance >= length),
+		0
+	);
+	const smallest = Math.min(largest + precision - 1, spanUnits.length - 1);
+
+	let rest = Math.round(distance / spanUnits[smallest][1]) * spanUnits[smallest][1];
+	const parts: string[] = [];
+
+	for (const [unit, length] of spanUnits.slice(largest, smallest + 1)) {
+		const count = Math.floor(rest / length);
+		rest -= count * length;
+		if (count) parts.push(`${count} ${unit}${count == 1 ? '' : 's'}`);
+	}
+
+	return parts.join(' ') || '0 seconds';
+}
+
 export function dateRange(date: Date): string {
 	return `${date.toLocaleString()} (${relativeToDate(date)})`;
 }

@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { dateRange, relativeToDate } from '../src/format.js';
+import { dateRange, relativeToDate, timeSpan } from '../src/format.js';
 
 const now = Date.UTC(2026, 0, 15, 12);
 
@@ -27,6 +27,32 @@ suite('relativeToDate', () => {
 
 	test('defaults to now', () => {
 		assert.equal(relativeToDate(Date.now() - 10 * 60_000), '10 minutes ago');
+	});
+});
+
+suite('timeSpan', () => {
+	test('uses the largest units', () => {
+		assert.equal(timeSpan(30_000), '30 seconds');
+		assert.equal(timeSpan(10 * 60_000), '10 minutes');
+		assert.equal(timeSpan(3600_000 + 5 * 60_000), '1 hour 5 minutes');
+		assert.equal(timeSpan(2 * 24 * 3600_000 + 3 * 3600_000), '2 days 3 hours');
+	});
+
+	test('rounds to the smallest unit used', () => {
+		assert.equal(timeSpan(9 * 60_000 + 29_600), '9 minutes 30 seconds');
+		assert.equal(timeSpan(3600_000 + 5 * 60_000 + 40_000), '1 hour 6 minutes');
+		assert.equal(timeSpan(23 * 3600_000 + 59 * 60_000 + 40_000), '24 hours');
+	});
+
+	test('precision', () => {
+		assert.equal(timeSpan(3600_000 + 5 * 60_000 + 7_000, 3), '1 hour 5 minutes 7 seconds');
+		assert.equal(timeSpan(3600_000 + 40 * 60_000, 1), '2 hours');
+	});
+
+	test('short and negative lengths', () => {
+		assert.equal(timeSpan(0), '0 seconds');
+		assert.equal(timeSpan(400), '0 seconds');
+		assert.equal(timeSpan(-90_000), '1 minute 30 seconds');
 	});
 });
 
