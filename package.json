@@ -26,7 +26,7 @@
 		"format:check": "prettier --check .",
 		"format": "prettier --write .",
 		"lint": "tsc --noEmit && eslint src",
-		"test": "tsx --test test/**/*.test.ts",
+		"test": "node --test test/**/*.test.ts",
 		"build": "tsc -b",
 		"prepublishOnly": "npx tsc"
 	},
@@ -46,7 +46,6 @@
 		"eslint": "^10.1.0",
 		"globals": "^17.8.0",
 		"prettier": "^3.2.5",
-		"tsx": "^4.19.1",
 		"typedoc": "^0.28.18",
 		"typescript": "^6.0.0",
 		"typescript-eslint": "^8.58.0"

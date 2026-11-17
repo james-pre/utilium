@@ -2,7 +2,7 @@
 // Copyright (c) 2026 James Prevett
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import type { Add, Divide, Fraction, Integer, Multiply, Subtract } from '../src/type-math.js';
+import type { Add, Divide, Fraction, Integer, Multiply, Subtract } from 'utilium/type-math';
 
 // addition
 

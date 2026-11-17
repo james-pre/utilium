@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
 import { setTimeout } from 'node:timers/promises';
-import { AsyncQueue } from '../src/async-queue.js';
+import { AsyncQueue } from 'utilium/async-queue';
 
 suite('AsyncQueue', () => {
 	test('functions run in order, one at a time', async () => {

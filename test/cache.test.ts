@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { Resource } from '../src/cache.js';
+import { Resource } from 'utilium/cache';
 
 /**
  * Regression tests for zen-fs/core#297 / utilium#5:

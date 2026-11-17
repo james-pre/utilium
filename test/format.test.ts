@@ -3,7 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { suite, test } from 'node:test';
-import { dateRange, relativeToDate, timeSpan } from '../src/format.js';
+import { dateRange, relativeToDate, timeSpan } from 'utilium/format';
 
 const now = Date.UTC(2026, 0, 15, 12);
 
